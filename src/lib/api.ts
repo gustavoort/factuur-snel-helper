@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = `${import.meta.env.VITE_API_URL ?? ""}/api`;
+const baseURL = `${import.meta.env['VITE_API_URL'] ?? ""}/api`;
 
 export const api = axios.create({
   baseURL,
@@ -8,6 +8,6 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-export const isApiConfigured = Boolean(import.meta.env.VITE_API_URL);
+export const isApiConfigured = Boolean(import.meta.env['VITE_API_URL']);
 
 export default api;

@@ -28,7 +28,7 @@ const secondaryNav = [
   { to: "/billing", label: "Abonnement", icon: CreditCard },
 ] as const;
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+function NavList({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const item = (to: string, label: string, Icon: typeof Users) => {
@@ -60,7 +60,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 

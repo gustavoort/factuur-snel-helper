@@ -113,9 +113,9 @@ function DashboardPage() {
                 {recentInvoices.map((row, i) => (
                   <div key={i} className="flex items-center justify-between px-4 py-3 text-sm">
                     <span className="text-foreground">
-                      {String(row.number ?? row.invoice_number ?? row.id ?? "—")}
+                      {String(row['number'] ?? row['invoice_number'] ?? row['id'] ?? "—")}
                     </span>
-                    <span className="text-muted-foreground">{euro(Number(row.total ?? 0))}</span>
+                    <span className="text-muted-foreground">{euro(Number(row['total'] ?? 0))}</span>
                   </div>
                 ))}
               </CardContent>
@@ -133,9 +133,9 @@ function DashboardPage() {
                 {recentQuotes.map((row, i) => (
                   <div key={i} className="flex items-center justify-between px-4 py-3 text-sm">
                     <span className="text-foreground">
-                      {String(row.number ?? row.quote_number ?? row.id ?? "—")}
+                      {String(row['number'] ?? row['quote_number'] ?? row['id'] ?? "—")}
                     </span>
-                    <span className="text-muted-foreground">{euro(Number(row.total ?? 0))}</span>
+                    <span className="text-muted-foreground">{euro(Number(row['total'] ?? 0))}</span>
                   </div>
                 ))}
               </CardContent>

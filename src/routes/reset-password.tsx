@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type Search = { token?: string };
+type Search = { token?: string | undefined };
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>): Search => ({
-    token: typeof search.token === "string" ? search.token : undefined,
+    token: typeof search['token'] === "string" ? (search['token'] as string) : undefined,
   }),
   head: () => ({
     meta: [
