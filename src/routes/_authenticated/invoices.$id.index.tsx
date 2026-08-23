@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
 
-export const Route = createFileRoute("/_authenticated/invoices/$id")({
+export const Route = createFileRoute("/_authenticated/invoices/$id/")({
   head: () => ({
     meta: [
       { title: "Factuur — FactuurSnel" },

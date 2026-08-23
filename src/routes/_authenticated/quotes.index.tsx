@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
 
-export const Route = createFileRoute("/_authenticated/quotes")({
+export const Route = createFileRoute("/_authenticated/quotes/")({
   head: () => ({
     meta: [
       { title: "Offertes — FactuurSnel" },
