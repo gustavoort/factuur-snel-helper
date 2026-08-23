@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { getApiErrorMessage } from "@/lib/api";
 import { GuestRoute } from "@/components/ProtectedRoute";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
@@ -40,8 +41,8 @@ function LoginPage() {
     try {
       await login(email, password);
       void navigate({ to: "/dashboard", replace: true });
-    } catch {
-      toast.error("Inloggen mislukt. Controleer je gegevens.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Inloggen mislukt. Controleer je gegevens."));
     } finally {
       setLoading(false);
     }
