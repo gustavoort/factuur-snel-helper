@@ -1,17 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "FactuurSnel" },
+      { title: "FactuurSnel — Offertes en facturen in seconden" },
       {
         name: "description",
-        content: "FactuurSnel — crie e envie faturas em segundos.",
+        content:
+          "FactuurSnel is de eenvoudige facturatiesoftware voor Nederlandse ondernemers: klanten, offertes, facturen en PDF's.",
       },
-      { property: "og:title", content: "FactuurSnel" },
+      { property: "og:title", content: "FactuurSnel — Offertes en facturen in seconden" },
       {
         property: "og:description",
-        content: "FactuurSnel — crie e envie faturas em segundos.",
+        content: "Beheer klanten, maak offertes en verstuur facturen — snel en professioneel.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -22,29 +25,36 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center">
-      <div className="flex items-center gap-2.5">
-        <span
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground text-lg font-bold"
-          aria-hidden
-        >
-          F
-        </span>
-        <span className="text-2xl font-semibold tracking-tight text-foreground">
-          Factuur<span className="text-primary">Snel</span>
-        </span>
-      </div>
+    <div className="min-h-screen bg-background">
+      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
+        <Logo />
+        <div className="flex gap-2">
+          <Button asChild variant="ghost">
+            <Link to="/login">Inloggen</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/register">Gratis starten</Link>
+          </Button>
+        </div>
+      </header>
 
-      <p className="mt-6 max-w-md text-base text-muted-foreground">
-        Crie e envie faturas em segundos. O seu projeto está pronto para
-        começar.
-      </p>
-
-      <div className="mt-10 h-px w-24 bg-border" />
-
-      <p className="mt-6 text-xs text-muted-foreground">
-        Projeto vazio · Pronto para desenvolvimento
-      </p>
+      <main className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+          Offertes en facturen in seconden
+        </h1>
+        <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground">
+          FactuurSnel helpt Nederlandse ondernemers met klanten, offertes, facturen, PDF's en
+          betaalstatus — alles op één plek.
+        </p>
+        <div className="mt-9 flex justify-center gap-3">
+          <Button asChild size="lg">
+            <Link to="/register">Gratis account aanmaken</Link>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <Link to="/login">Inloggen</Link>
+          </Button>
+        </div>
+      </main>
     </div>
   );
 }

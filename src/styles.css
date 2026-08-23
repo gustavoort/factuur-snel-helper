@@ -142,3 +142,35 @@
     color: var(--color-foreground);
   }
 }
+
+/* FactuurSnel brand palette */
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.979 0.004 85);
+  --foreground: oklch(0.245 0.008 165);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.245 0.008 165);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.245 0.008 165);
+  --primary: oklch(0.409 0.048 165);
+  --primary-foreground: oklch(0.985 0.004 85);
+  --secondary: oklch(0.955 0.006 85);
+  --secondary-foreground: oklch(0.245 0.008 165);
+  --muted: oklch(0.955 0.006 85);
+  --muted-foreground: oklch(0.515 0.014 165);
+  --accent: oklch(0.94 0.014 165);
+  --accent-foreground: oklch(0.409 0.048 165);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0.004 85);
+  --border: oklch(0.897 0.007 85);
+  --input: oklch(0.897 0.007 85);
+  --ring: oklch(0.409 0.048 165);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.245 0.008 165);
+  --sidebar-primary: oklch(0.409 0.048 165);
+  --sidebar-primary-foreground: oklch(0.985 0.004 85);
+  --sidebar-accent: oklch(0.94 0.014 165);
+  --sidebar-accent-foreground: oklch(0.409 0.048 165);
+  --sidebar-border: oklch(0.897 0.007 85);
+  --sidebar-ring: oklch(0.409 0.048 165);
+}
