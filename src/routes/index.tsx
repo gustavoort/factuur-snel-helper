@@ -1,24 +1,50 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "FactuurSnel" },
+      {
+        name: "description",
+        content: "FactuurSnel — crie e envie faturas em segundos.",
+      },
+      { property: "og:title", content: "FactuurSnel" },
+      {
+        property: "og:description",
+        content: "FactuurSnel — crie e envie faturas em segundos.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center">
+      <div className="flex items-center gap-2.5">
+        <span
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground text-lg font-bold"
+          aria-hidden
+        >
+          F
+        </span>
+        <span className="text-2xl font-semibold tracking-tight text-foreground">
+          Factuur<span className="text-primary">Snel</span>
+        </span>
+      </div>
+
+      <p className="mt-6 max-w-md text-base text-muted-foreground">
+        Crie e envie faturas em segundos. O seu projeto está pronto para
+        começar.
+      </p>
+
+      <div className="mt-10 h-px w-24 bg-border" />
+
+      <p className="mt-6 text-xs text-muted-foreground">
+        Projeto vazio · Pronto para desenvolvimento
+      </p>
     </div>
   );
 }
