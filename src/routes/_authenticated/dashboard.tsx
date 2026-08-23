@@ -38,12 +38,23 @@ interface DashboardData {
   total_invoices?: number;
   paid_revenue?: number;
   outstanding?: number;
-  recent_quotes?: DashboardRow[];
-  recent_invoices?: DashboardRow[];
+  recent_quotes?: unknown;
+  recent_invoices?: unknown;
 }
 
 const euro = (v: number | undefined) =>
   new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(v ?? 0);
+
+function dashboardRows(value: unknown): DashboardRow[] {
+  if (Array.isArray(value)) return value as DashboardRow[];
+  if (value && typeof value === "object") {
+    const nested = (value as { items?: unknown; results?: unknown; data?: unknown }).items
+      ?? (value as { results?: unknown }).results
+      ?? (value as { data?: unknown }).data;
+    if (Array.isArray(nested)) return nested as DashboardRow[];
+  }
+  return [];
+}
 
 function RecentList({ rows, kind }: { rows: DashboardRow[]; kind: "invoice" | "quote" }) {
   return (
@@ -82,8 +93,8 @@ function DashboardPage() {
     { label: "Klanten", value: String(data?.total_clients ?? 0) },
   ];
 
-  const recentInvoices = data?.recent_invoices ?? [];
-  const recentQuotes = data?.recent_quotes ?? [];
+  const recentInvoices = dashboardRows(data?.recent_invoices);
+  const recentQuotes = dashboardRows(data?.recent_quotes);
 
   return (
     <>
