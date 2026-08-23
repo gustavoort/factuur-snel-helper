@@ -41,8 +41,8 @@ function RegisterPage() {
     try {
       await register({ name, email, password });
       void navigate({ to: "/dashboard", replace: true });
-    } catch {
-      toast.error("Registreren mislukt. Probeer het opnieuw.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Registreren mislukt. Probeer het opnieuw."));
     } finally {
       setLoading(false);
     }

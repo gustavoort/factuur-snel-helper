@@ -40,8 +40,8 @@ function LoginPage() {
     try {
       await login(email, password);
       void navigate({ to: "/dashboard", replace: true });
-    } catch {
-      toast.error("Inloggen mislukt. Controleer je gegevens.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Inloggen mislukt. Controleer je gegevens."));
     } finally {
       setLoading(false);
     }

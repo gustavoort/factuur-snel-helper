@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import api, { isApiConfigured } from "@/lib/api";
+import { AxiosError } from "axios";
+import api, { isApiConfigured, getApiErrorMessage } from "@/lib/api";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,36 +22,68 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
 });
 
+interface DashboardRow {
+  id?: string | number;
+  number?: string;
+  invoice_number?: string;
+  quote_number?: string;
+  client_name?: string;
+  total?: number;
+  status?: string;
+}
+
 interface DashboardData {
-  omzet?: number;
-  revenue?: number;
-  openstaand?: number;
+  total_clients?: number;
+  total_quotes?: number;
+  total_invoices?: number;
+  paid_revenue?: number;
   outstanding?: number;
-  invoices_count?: number;
-  clients_count?: number;
-  recent_invoices?: Array<Record<string, unknown>>;
-  recent_quotes?: Array<Record<string, unknown>>;
+  recent_quotes?: DashboardRow[];
+  recent_invoices?: DashboardRow[];
 }
 
 const euro = (v: number | undefined) =>
   new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(v ?? 0);
 
+function RecentList({ rows, kind }: { rows: DashboardRow[]; kind: "invoice" | "quote" }) {
+  return (
+    <Card>
+      <CardContent className="divide-y divide-border p-0">
+        {rows.map((row, i) => (
+          <div key={row.id ?? i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+            <span className="min-w-0 truncate text-foreground">
+              {row.number ?? (kind === "invoice" ? row.invoice_number : row.quote_number) ?? `#${row.id ?? i + 1}`}
+              {row.client_name ? <span className="text-muted-foreground"> · {row.client_name}</span> : null}
+            </span>
+            <span className="shrink-0 text-muted-foreground">{euro(row.total)}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function DashboardPage() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isPending, isError, error } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => (await api.get<DashboardData>("/dashboard")).data,
     enabled: isApiConfigured,
+    retry: false,
   });
 
+  const isUnauthorized = error instanceof AxiosError && error.response?.status === 401;
+  const loading = isApiConfigured && isPending;
+  const hasData = Boolean(data);
+
   const stats = [
-    { label: "Omzet", value: euro(data?.omzet ?? data?.revenue) },
-    { label: "Openstaand", value: euro(data?.openstaand ?? data?.outstanding) },
-    { label: "Facturen", value: String(data?.invoices_count ?? 0) },
-    { label: "Klanten", value: String(data?.clients_count ?? 0) },
+    { label: "Omzet", value: euro(data?.paid_revenue) },
+    { label: "Openstaand", value: euro(data?.outstanding) },
+    { label: "Facturen", value: String(data?.total_invoices ?? 0) },
+    { label: "Klanten", value: String(data?.total_clients ?? 0) },
   ];
 
-  const recentInvoices = Array.isArray(data?.recent_invoices) ? data.recent_invoices : [];
-  const recentQuotes = Array.isArray(data?.recent_quotes) ? data.recent_quotes : [];
+  const recentInvoices = data?.recent_invoices ?? [];
+  const recentQuotes = data?.recent_quotes ?? [];
 
   return (
     <>
@@ -76,12 +109,15 @@ function DashboardPage() {
 
       {!isApiConfigured && (
         <div className="mb-6 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-          Stel <code className="font-mono">VITE_API_URL</code> in om live data van de FastAPI-backend te laden.
+          Stel <code className="font-mono">VITE_API_URL</code> in (volledige URL van de FastAPI-backend) om live data te
+          laden.
         </div>
       )}
       {isError && (
         <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          Kon dashboardgegevens niet laden.
+          {isUnauthorized
+            ? "Je sessie is verlopen. Log opnieuw in."
+            : getApiErrorMessage(error, "Kon dashboardgegevens niet laden.")}
         </div>
       )}
 
@@ -92,10 +128,10 @@ function DashboardPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {loading ? (
                 <Skeleton className="h-7 w-24" />
               ) : (
-                <p className="text-2xl font-semibold tracking-tight text-foreground">{s.value}</p>
+                <p className="text-2xl font-semibold tracking-tight text-foreground">{hasData ? s.value : "—"}</p>
               )}
             </CardContent>
           </Card>
@@ -105,41 +141,23 @@ function DashboardPage() {
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section>
           <h2 className="mb-3 text-sm font-semibold text-foreground">Recente facturen</h2>
-          {recentInvoices.length === 0 ? (
+          {loading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : recentInvoices.length === 0 ? (
             <EmptyState title="Nog geen facturen" description="Maak je eerste factuur aan." />
           ) : (
-            <Card>
-              <CardContent className="divide-y divide-border p-0">
-                {recentInvoices.map((row, i) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-3 text-sm">
-                    <span className="text-foreground">
-                      {String(row['number'] ?? row['invoice_number'] ?? row['id'] ?? "—")}
-                    </span>
-                    <span className="text-muted-foreground">{euro(Number(row['total'] ?? 0))}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            <RecentList rows={recentInvoices} kind="invoice" />
           )}
         </section>
 
         <section>
           <h2 className="mb-3 text-sm font-semibold text-foreground">Recente offertes</h2>
-          {recentQuotes.length === 0 ? (
+          {loading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : recentQuotes.length === 0 ? (
             <EmptyState title="Nog geen offertes" description="Maak je eerste offerte aan." />
           ) : (
-            <Card>
-              <CardContent className="divide-y divide-border p-0">
-                {recentQuotes.map((row, i) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-3 text-sm">
-                    <span className="text-foreground">
-                      {String(row['number'] ?? row['quote_number'] ?? row['id'] ?? "—")}
-                    </span>
-                    <span className="text-muted-foreground">{euro(Number(row['total'] ?? 0))}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            <RecentList rows={recentQuotes} kind="quote" />
           )}
         </section>
       </div>
