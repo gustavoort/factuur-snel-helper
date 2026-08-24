@@ -1,28 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import api, { getApiErrorMessage } from "@/lib/api";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { pageMeta } from "@/i18n/head";
 
 export const Route = createFileRoute("/forgot-password")({
   ssr: false,
-  head: () => ({
-    meta: [
-      { title: "Wachtwoord vergeten — FactuurSnel" },
-      { name: "description", content: "Ontvang een link om je FactuurSnel-wachtwoord opnieuw in te stellen." },
-      { property: "og:title", content: "Wachtwoord vergeten — FactuurSnel" },
-      { property: "og:description", content: "Ontvang een link om je FactuurSnel-wachtwoord opnieuw in te stellen." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () => ({ meta: pageMeta("auth.forgot.title", "auth.forgot.subtitle") }),
   component: ForgotPasswordPage,
 });
 
 function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -41,25 +35,29 @@ function ForgotPasswordPage() {
   };
 
   return (
-    <AuthShell title="Wachtwoord vergeten" subtitle="We sturen je een herstellink per e-mail.">
+    <AuthShell title={t("auth.forgot.title")} subtitle={t("auth.forgot.subtitle")}>
       {sent ? (
-        <p className="text-sm text-muted-foreground">
-          Als dit e-mailadres bestaat, ontvang je zo een e-mail met instructies.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("auth.forgot.sent")}</p>
       ) : (
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Label htmlFor="email">{t("auth.email")}</Label>
+            <Input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Bezig…" : "Herstellink sturen"}
+            {loading ? t("common.busy") : t("auth.forgot.submit")}
           </Button>
         </form>
       )}
       <p className="mt-6 text-sm text-muted-foreground">
         <Link to="/login" className="text-primary hover:underline">
-          Terug naar inloggen
+          {t("auth.forgot.back")}
         </Link>
       </p>
     </AuthShell>

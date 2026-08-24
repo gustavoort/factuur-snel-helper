@@ -1,5 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import api from "@/lib/api";
+import i18n from "@/i18n";
+import { asRecord, collection, text } from "@/lib/normalize";
 
 export interface ClientPayload {
   name: string;
@@ -29,16 +31,6 @@ export const emptyClient: ClientPayload = {
   notes: "",
 };
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function text(value: unknown, fallback = "") {
-  return typeof value === "string" ? value : fallback;
-}
-
 function normalizeClient(value: unknown): Client | null {
   const row = asRecord(value);
   if (!row || (typeof row["id"] !== "string" && typeof row["id"] !== "number")) return null;
@@ -57,20 +49,9 @@ function normalizeClient(value: unknown): Client | null {
   };
 }
 
-function collection(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value;
-  const response = asRecord(value);
-  if (!response) return [];
-
-  for (const key of ["clients", "items", "results", "data"] as const) {
-    if (Array.isArray(response[key])) return response[key];
-  }
-  return [];
-}
-
 export async function getClients(): Promise<Client[]> {
   const { data } = await api.get<unknown>("/clients");
-  return collection(data)
+  return collection(data, "clients")
     .map(normalizeClient)
     .filter((client): client is Client => client !== null);
 }
@@ -79,7 +60,7 @@ export async function getClient(id: string): Promise<Client> {
   const { data } = await api.get<unknown>(`/clients/${encodeURIComponent(id)}`);
   const response = asRecord(data);
   const client = normalizeClient(response?.["client"] ?? response?.["data"] ?? data);
-  if (!client) throw new Error("De server gaf ongeldige klantgegevens terug.");
+  if (!client) throw new Error(i18n.t("errors.invalidClientData"));
   return client;
 }
 
@@ -95,6 +76,11 @@ export async function updateClient(id: string, payload: ClientPayload) {
 
 export async function deleteClient(id: string) {
   await api.delete(`/clients/${encodeURIComponent(id)}`);
+}
+
+/** Preferred display label for a client: company name, else personal name. */
+export function clientLabel(client: Client) {
+  return client.company_name || client.name || client.email || client.id;
 }
 
 export const clientsQueryOptions = () =>

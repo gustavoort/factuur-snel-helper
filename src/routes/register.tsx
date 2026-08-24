@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -8,19 +9,11 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { pageMeta } from "@/i18n/head";
 
 export const Route = createFileRoute("/register")({
   ssr: false,
-  head: () => ({
-    meta: [
-      { title: "Account aanmaken — FactuurSnel" },
-      { name: "description", content: "Maak gratis een FactuurSnel-account aan en stuur je eerste factuur." },
-      { property: "og:title", content: "Account aanmaken — FactuurSnel" },
-      { property: "og:description", content: "Maak gratis een FactuurSnel-account aan en stuur je eerste factuur." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () => ({ meta: pageMeta("auth.register.title", "auth.register.subtitle") }),
   component: () => (
     <GuestRoute>
       <RegisterPage />
@@ -31,6 +24,7 @@ export const Route = createFileRoute("/register")({
 function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,25 +37,31 @@ function RegisterPage() {
       await register({ name, email, password });
       void navigate({ to: "/dashboard", replace: true });
     } catch (err) {
-      toast.error(getApiErrorMessage(err, "Registreren mislukt. Probeer het opnieuw."));
+      toast.error(getApiErrorMessage(err, t("auth.register.failed")));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthShell title="Account aanmaken" subtitle="Start gratis met FactuurSnel.">
+    <AuthShell title={t("auth.register.title")} subtitle={t("auth.register.subtitle")}>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="name">Naam</Label>
+          <Label htmlFor="name">{t("auth.name")}</Label>
           <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email">E-mail</Label>
-          <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Label htmlFor="email">{t("auth.email")}</Label>
+          <Input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Wachtwoord</Label>
+          <Label htmlFor="password">{t("auth.password")}</Label>
           <Input
             id="password"
             type="password"
@@ -72,13 +72,13 @@ function RegisterPage() {
           />
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Bezig…" : "Registreren"}
+          {loading ? t("common.busy") : t("auth.register.submit")}
         </Button>
       </form>
       <p className="mt-6 text-sm text-muted-foreground">
-        Heb je al een account?{" "}
+        {t("auth.register.haveAccount")}{" "}
         <Link to="/login" className="text-primary hover:underline">
-          Inloggen
+          {t("auth.register.loginLink")}
         </Link>
       </p>
     </AuthShell>

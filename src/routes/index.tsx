@@ -1,21 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import i18n from "@/i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "FactuurSnel — Offertes en facturen in seconden" },
-      {
-        name: "description",
-        content:
-          "FactuurSnel is de eenvoudige facturatiesoftware voor Nederlandse ondernemers: klanten, offertes, facturen en PDF's.",
-      },
-      { property: "og:title", content: "FactuurSnel — Offertes en facturen in seconden" },
-      {
-        property: "og:description",
-        content: "Beheer klanten, maak offertes en verstuur facturen — snel en professioneel.",
-      },
+      { title: i18n.t("landing.metaTitle") },
+      { name: "description", content: i18n.t("landing.metaDescription") },
+      { property: "og:title", content: i18n.t("landing.metaTitle") },
+      { property: "og:description", content: i18n.t("landing.subtitle") },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -24,34 +20,36 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
+      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-6 py-6">
         <Logo />
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <LanguageSelector className="w-40" />
           <Button asChild variant="ghost">
-            <Link to="/login">Inloggen</Link>
+            <Link to="/login">{t("landing.login")}</Link>
           </Button>
           <Button asChild>
-            <Link to="/register">Gratis starten</Link>
+            <Link to="/register">{t("landing.register")}</Link>
           </Button>
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-24 text-center">
         <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          Offertes en facturen in seconden
+          {t("landing.title")}
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground">
-          FactuurSnel helpt Nederlandse ondernemers met klanten, offertes, facturen, PDF's en
-          betaalstatus — alles op één plek.
+          {t("landing.subtitle")}
         </p>
         <div className="mt-9 flex justify-center gap-3">
           <Button asChild size="lg">
-            <Link to="/register">Gratis account aanmaken</Link>
+            <Link to="/register">{t("landing.ctaPrimary")}</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link to="/login">Inloggen</Link>
+            <Link to="/login">{t("landing.login")}</Link>
           </Button>
         </div>
       </main>

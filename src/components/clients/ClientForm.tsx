@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import type { ClientPayload } from "@/lib/clients";
 import { Button } from "@/components/ui/button";
@@ -14,38 +15,40 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-const clientSchema = z.object({
-  name: z.string().trim().min(1, "Naam is verplicht."),
-  company_name: z.string(),
-  email: z
-    .string()
-    .refine(
-      (value) => !value || z.string().email().safeParse(value).success,
-      "Vul een geldig e-mailadres in.",
-    ),
-  phone: z.string(),
-  address: z.string(),
-  postal_code: z.string(),
-  city: z.string(),
-  country: z.string(),
-  notes: z.string(),
-});
+type Translate = (key: string) => string;
+
+const buildSchema = (t: Translate) =>
+  z.object({
+    name: z.string().trim().min(1, t("validation.nameRequired")),
+    company_name: z.string(),
+    email: z
+      .string()
+      .refine(
+        (value) => !value || z.string().email().safeParse(value).success,
+        t("validation.invalidEmail"),
+      ),
+    phone: z.string(),
+    address: z.string(),
+    postal_code: z.string(),
+    city: z.string(),
+    country: z.string(),
+    notes: z.string(),
+  });
 
 const fields: Array<{
   name: Exclude<keyof ClientPayload, "notes">;
-  label: string;
   type?: string;
   autoComplete?: string;
   full?: boolean;
 }> = [
-  { name: "name", label: "Naam *", autoComplete: "name" },
-  { name: "company_name", label: "Bedrijfsnaam", autoComplete: "organization" },
-  { name: "email", label: "E-mailadres", type: "email", autoComplete: "email" },
-  { name: "phone", label: "Telefoonnummer", type: "tel", autoComplete: "tel" },
-  { name: "address", label: "Adres", autoComplete: "street-address", full: true },
-  { name: "postal_code", label: "Postcode", autoComplete: "postal-code" },
-  { name: "city", label: "Plaats", autoComplete: "address-level2" },
-  { name: "country", label: "Land", autoComplete: "country-name", full: true },
+  { name: "name", autoComplete: "name" },
+  { name: "company_name", autoComplete: "organization" },
+  { name: "email", type: "email", autoComplete: "email" },
+  { name: "phone", type: "tel", autoComplete: "tel" },
+  { name: "address", autoComplete: "street-address", full: true },
+  { name: "postal_code", autoComplete: "postal-code" },
+  { name: "city", autoComplete: "address-level2" },
+  { name: "country", autoComplete: "country-name", full: true },
 ];
 
 export function ClientForm({
@@ -61,8 +64,9 @@ export function ClientForm({
   onSubmit: (values: ClientPayload) => Promise<void>;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const form = useForm<ClientPayload>({
-    resolver: zodResolver(clientSchema),
+    resolver: zodResolver(buildSchema(t as Translate)),
     defaultValues,
   });
 
@@ -80,7 +84,7 @@ export function ClientForm({
               name={item.name}
               render={({ field }) => (
                 <FormItem className={item.full ? "sm:col-span-2" : undefined}>
-                  <FormLabel>{item.label}</FormLabel>
+                  <FormLabel>{t(`clients.fields.${item.name}`)}</FormLabel>
                   <FormControl>
                     <Input
                       type={item.type}
@@ -99,7 +103,7 @@ export function ClientForm({
             name="notes"
             render={({ field }) => (
               <FormItem className="sm:col-span-2">
-                <FormLabel>Notities</FormLabel>
+                <FormLabel>{t("common.notes")}</FormLabel>
                 <FormControl>
                   <Textarea rows={5} disabled={isSubmitting} {...field} />
                 </FormControl>
@@ -110,10 +114,10 @@ export function ClientForm({
         </div>
         <div className="mt-7 flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" disabled={isSubmitting} onClick={onCancel}>
-            Annuleren
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Bezig…" : submitLabel}
+            {isSubmitting ? t("common.busy") : submitLabel}
           </Button>
         </div>
       </form>
