@@ -66,7 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async ({ name, email, password }: { name: string; email: string; password: string }) => {
-      await api.post("/auth/register", { email, password, name }, { skipAuthRefresh: true } as never);
+      await api.post("/auth/register", { email, password, name }, {
+        skipAuthRefresh: true,
+      } as never);
       await refreshUser();
     },
     [refreshUser],

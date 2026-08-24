@@ -215,8 +215,7 @@ const en = {
     emailFailed: "Sending the email failed.",
     whatsappFailed: "Fetching the WhatsApp link failed.",
     deleteTitle: "Delete quote?",
-    deleteDescription:
-      "Are you sure you want to delete this quote? This action cannot be undone.",
+    deleteDescription: "Are you sure you want to delete this quote? This action cannot be undone.",
     convert: "Convert to invoice",
     converting: "Converting…",
     convertAction: "Convert",

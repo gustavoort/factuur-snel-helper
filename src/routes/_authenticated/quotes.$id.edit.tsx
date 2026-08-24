@@ -69,9 +69,7 @@ function EditQuotePage() {
             validity_days: data.validity_days,
             status: data.status || "draft",
           }}
-          lockedClientLabel={
-            data.client_company || data.client_name || t("common.unknownClient")
-          }
+          lockedClientLabel={data.client_company || data.client_name || t("common.unknownClient")}
           statusOptions={STATUS_OPTIONS}
           submitLabel={t("common.saveChanges")}
           isSubmitting={update.isPending}

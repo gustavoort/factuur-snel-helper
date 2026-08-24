@@ -135,7 +135,10 @@ export async function createInvoicePaymentLink(id: string): Promise<string> {
   const { data } = await api.post<unknown>(`/invoices/${encodeURIComponent(id)}/payment-link`);
   const response = asRecord(data);
   const url = text(
-    response?.["payment_url"] ?? response?.["url"] ?? response?.["checkout_url"] ?? response?.["link"],
+    response?.["payment_url"] ??
+      response?.["url"] ??
+      response?.["checkout_url"] ??
+      response?.["link"],
   );
   if (!url) throw new Error(i18n.t("errors.noPaymentUrl"));
   return url;

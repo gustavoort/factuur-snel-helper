@@ -74,7 +74,10 @@ export async function startCheckout(plan: string): Promise<string> {
   const { data } = await api.post<unknown>("/subscription/checkout", { plan });
   const response = asRecord(data);
   const url = text(
-    response?.["checkout_url"] ?? response?.["url"] ?? response?.["payment_url"] ?? response?.["link"],
+    response?.["checkout_url"] ??
+      response?.["url"] ??
+      response?.["payment_url"] ??
+      response?.["link"],
   );
   if (!url) throw new Error(i18n.t("errors.noPaymentUrl"));
   return url;
@@ -91,7 +94,8 @@ export async function getPaymentStatus(sessionId: string): Promise<PaymentStatus
   const response = asRecord(data) ?? {};
   const status = text(response["status"] ?? response["payment_status"]).toLowerCase();
   const paid =
-    response["paid"] === true || ["paid", "complete", "completed", "succeeded", "active"].includes(status);
+    response["paid"] === true ||
+    ["paid", "complete", "completed", "succeeded", "active"].includes(status);
   return { status, paid, message: text(response["message"]) };
 }
 

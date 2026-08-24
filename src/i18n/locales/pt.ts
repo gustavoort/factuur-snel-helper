@@ -156,7 +156,8 @@ const pt = {
     detailLoadFailed: "Não foi possível carregar o cliente",
     notFound: "Cliente não encontrado.",
     deleteTitle: "Excluir cliente?",
-    deleteDescription: "Tem certeza de que deseja excluir {{name}}? Esta ação não pode ser desfeita.",
+    deleteDescription:
+      "Tem certeza de que deseja excluir {{name}}? Esta ação não pode ser desfeita.",
     created: "Cliente adicionado com sucesso",
     updated: "Cliente atualizado com sucesso",
     deleted: "Cliente excluído com sucesso",

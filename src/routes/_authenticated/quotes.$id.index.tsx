@@ -3,7 +3,16 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ArrowLeft, Download, Mail, MessageCircle, Copy, Pencil, Trash2, FileUp } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  Mail,
+  MessageCircle,
+  Copy,
+  Pencil,
+  Trash2,
+  FileUp,
+} from "lucide-react";
 import { getApiErrorMessage } from "@/lib/api";
 import {
   convertQuote,

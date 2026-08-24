@@ -2,7 +2,7 @@ import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 import i18n from "@/i18n";
 import { translateApiDetail } from "@/i18n/api-errors";
 
-const rawApiUrl = (import.meta.env['VITE_API_URL'] ?? "").toString().trim();
+const rawApiUrl = (import.meta.env["VITE_API_URL"] ?? "").toString().trim();
 
 /** Normalized backend origin, e.g. https://api.example.com (no trailing slash). */
 export const apiUrl = rawApiUrl.replace(/\/+$/, "");
@@ -40,7 +40,11 @@ export function getApiErrorMessage(error: unknown, fallback?: string): string {
     if (msgs.length) return msgs.map(translateApiDetail).join(" ");
   }
 
-  if (detail && typeof detail === "object" && typeof (detail as { msg?: unknown }).msg === "string") {
+  if (
+    detail &&
+    typeof detail === "object" &&
+    typeof (detail as { msg?: unknown }).msg === "string"
+  ) {
     return translateApiDetail((detail as { msg: string }).msg);
   }
 

@@ -67,8 +67,14 @@ const buildSchema = (t: Translate) =>
     kvk_number: z.string(),
     btw_number: z.string(),
     iban: z.string(),
-    payment_terms: z.coerce.number({ message: t("validation.numberInvalid") }).min(0).max(365),
-    default_vat_rate: z.coerce.number({ message: t("validation.numberInvalid") }).min(0).max(100),
+    payment_terms: z.coerce
+      .number({ message: t("validation.numberInvalid") })
+      .min(0)
+      .max(365),
+    default_vat_rate: z.coerce
+      .number({ message: t("validation.numberInvalid") })
+      .min(0)
+      .max(100),
   });
 
 function CompanyPage() {
