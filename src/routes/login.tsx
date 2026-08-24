@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiErrorMessage } from "@/lib/api";
@@ -8,19 +9,11 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { pageMeta } from "@/i18n/head";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
-  head: () => ({
-    meta: [
-      { title: "Inloggen — FactuurSnel" },
-      { name: "description", content: "Log in op FactuurSnel om je offertes en facturen te beheren." },
-      { property: "og:title", content: "Inloggen — FactuurSnel" },
-      { property: "og:description", content: "Log in op FactuurSnel om je offertes en facturen te beheren." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () => ({ meta: pageMeta("auth.login.title", "auth.login.subtitle") }),
   component: () => (
     <GuestRoute>
       <LoginPage />
@@ -31,6 +24,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,21 +36,27 @@ function LoginPage() {
       await login(email, password);
       void navigate({ to: "/dashboard", replace: true });
     } catch (err) {
-      toast.error(getApiErrorMessage(err, "Inloggen mislukt. Controleer je gegevens."));
+      toast.error(getApiErrorMessage(err, t("auth.login.failed")));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthShell title="Welkom terug" subtitle="Log in op je FactuurSnel-account.">
+    <AuthShell title={t("auth.login.title")} subtitle={t("auth.login.subtitle")}>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email">E-mail</Label>
-          <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Label htmlFor="email">{t("auth.email")}</Label>
+          <Input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Wachtwoord</Label>
+          <Label htmlFor="password">{t("auth.password")}</Label>
           <Input
             id="password"
             type="password"
@@ -66,17 +66,17 @@ function LoginPage() {
           />
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Bezig…" : "Inloggen"}
+          {loading ? t("common.busy") : t("auth.login.submit")}
         </Button>
       </form>
       <div className="mt-6 space-y-2 text-sm text-muted-foreground">
         <Link to="/forgot-password" className="text-primary hover:underline">
-          Wachtwoord vergeten?
+          {t("auth.login.forgot")}
         </Link>
         <p>
-          Nog geen account?{" "}
+          {t("auth.login.noAccount")}{" "}
           <Link to="/register" className="text-primary hover:underline">
-            Registreren
+            {t("auth.login.registerLink")}
           </Link>
         </p>
       </div>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/Logo";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 export function AuthShell({
   title,
@@ -21,6 +22,9 @@ export function AuthShell({
           <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
           {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
           <div className="mt-6">{children}</div>
+        </div>
+        <div className="mt-6 flex justify-center">
+          <LanguageSelector className="w-44" />
         </div>
       </div>
     </div>

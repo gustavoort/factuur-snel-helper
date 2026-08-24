@@ -1,4 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig } from "axios";
+import i18n from "@/i18n";
+import { translateApiDetail } from "@/i18n/api-errors";
 
 const rawApiUrl = (import.meta.env['VITE_API_URL'] ?? "").toString().trim();
 
@@ -14,32 +16,39 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-export const CONNECTION_ERROR_MESSAGE =
-  "Kan geen verbinding maken met de server. Probeer het later opnieuw.";
-
-/** Extracts a human message from a FastAPI `detail` payload (string | array | object). */
-export function getApiErrorMessage(error: unknown, fallback = "Er ging iets mis. Probeer het opnieuw."): string {
+/** Extracts a human, translated message from a FastAPI `detail` payload (string | array | object). */
+export function getApiErrorMessage(error: unknown, fallback?: string): string {
   const err = error as AxiosError<unknown> | undefined;
 
-  if (err && axios.isAxiosError(err) && !err.response) return CONNECTION_ERROR_MESSAGE;
+  if (err && axios.isAxiosError(err) && !err.response) return i18n.t("errors.connection");
 
   const data = err?.response?.data as { detail?: unknown; message?: unknown } | undefined;
   const detail = data?.detail ?? data?.message;
 
-  if (typeof detail === "string" && detail.trim()) return detail;
+  if (typeof detail === "string" && detail.trim()) return translateApiDetail(detail);
 
   if (Array.isArray(detail)) {
     const msgs = detail
-      .map((d) => (typeof d === "string" ? d : typeof (d as { msg?: unknown })?.msg === "string" ? (d as { msg: string }).msg : null))
+      .map((d) =>
+        typeof d === "string"
+          ? d
+          : typeof (d as { msg?: unknown })?.msg === "string"
+            ? (d as { msg: string }).msg
+            : null,
+      )
       .filter((m): m is string => Boolean(m));
-    if (msgs.length) return msgs.join(" ");
+    if (msgs.length) return msgs.map(translateApiDetail).join(" ");
   }
 
   if (detail && typeof detail === "object" && typeof (detail as { msg?: unknown }).msg === "string") {
-    return (detail as { msg: string }).msg;
+    return translateApiDetail((detail as { msg: string }).msg);
   }
 
-  return fallback;
+  if (err && axios.isAxiosError(err) && err.response?.status === 422) {
+    return i18n.t("errors.validation");
+  }
+
+  return fallback ?? i18n.t("errors.generic");
 }
 
 type RetryConfig = AxiosRequestConfig & { _retry?: boolean; skipAuthRefresh?: boolean };

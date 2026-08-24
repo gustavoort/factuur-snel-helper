@@ -1,10 +1,15 @@
-import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Building2, Mail, MapPin, Pencil, Phone, Plus, Search, Trash2, Users } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/PageHeader";
+import { getApiErrorMessage, isApiConfigured } from "@/lib/api";
+import { clientsQueryOptions, deleteClient, type Client } from "@/lib/clients";
+import { PageHeader, EmptyState } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -15,220 +20,158 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { clientsQueryOptions, deleteClient, type Client } from "@/lib/clients";
-import { getApiErrorMessage } from "@/lib/api";
+import { pageMeta } from "@/i18n/head";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search["q"] === "string" ? search["q"] : "",
-  }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(clientsQueryOptions()),
-  head: () => ({
-    meta: [
-      { title: "Klanten — FactuurSnel" },
-      { name: "description", content: "Beheer je klanten." },
-      { property: "og:title", content: "Klanten — FactuurSnel" },
-      { property: "og:description", content: "Beheer je klanten." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  pendingComponent: ClientsLoading,
-  errorComponent: ClientsError,
-  notFoundComponent: () => <ClientsEmpty />,
+  head: () => ({ meta: pageMeta("clients.title", "clients.metaDescription") }),
   component: ClientsPage,
 });
 
 function ClientsPage() {
-  const { data: clients } = useSuspenseQuery(clientsQueryOptions());
-  const { q } = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
-  const normalizedQuery = q.trim().toLocaleLowerCase("nl-NL");
-  const filteredClients = normalizedQuery
-    ? clients.filter((client) =>
-        [client.name, client.company_name, client.email, client.city].some((value) =>
-          value.toLocaleLowerCase("nl-NL").includes(normalizedQuery),
-        ),
-      )
-    : clients;
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [query, setQuery] = useState("");
+  const [pending, setPending] = useState<Client | null>(null);
+
+  const { data, isPending, isError, error } = useQuery({
+    ...clientsQueryOptions(),
+    enabled: isApiConfigured,
+    retry: false,
+  });
+
+  const remove = useMutation({
+    mutationFn: (client: Client) => deleteClient(client.id),
+    onSuccess: async () => {
+      toast.success(t("clients.deleted"));
+      setPending(null);
+      await queryClient.invalidateQueries({ queryKey: ["clients"] });
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, t("clients.deleteFailed"))),
+  });
+
+  const clients = data ?? [];
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return clients;
+    return clients.filter((client) =>
+      [client.name, client.company_name, client.email, client.city]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(term)),
+    );
+  }, [clients, query]);
 
   return (
     <>
       <PageHeader
-        title="Klanten"
-        description="Beheer uw klantgegevens voor offertes en facturen."
+        title={t("clients.title")}
+        description={t("clients.description")}
         actions={
           <Button asChild>
             <Link to="/clients/new">
-              <Plus /> Nieuwe klant
+              <Plus className="h-4 w-4" /> {t("clients.new")}
             </Link>
           </Button>
         }
       />
 
-      {clients.length === 0 ? (
-        <ClientsEmpty />
-      ) : (
-        <>
-          <div className="relative mb-5 max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              aria-label="Klanten zoeken"
-              placeholder="Zoek op naam, bedrijf, e-mail of plaats"
-              className="pl-9"
-              value={q}
-              onChange={(event) => {
-                void navigate({ search: { q: event.target.value }, replace: true });
-              }}
-            />
-          </div>
-
-          {filteredClients.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
-              <p className="font-medium text-foreground">Geen klanten gevonden</p>
-              <p className="mt-1 text-sm text-muted-foreground">Probeer een andere zoekterm.</p>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {filteredClients.map((client) => (
-                <ClientRow key={client.id} client={client} />
-              ))}
-            </div>
-          )}
-        </>
+      {!isApiConfigured && (
+        <div className="mb-6 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+          {t("common.apiNotConfigured")}
+        </div>
       )}
+
+      {isError && (
+        <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          {getApiErrorMessage(error, t("clients.loadFailed"))}
+        </div>
+      )}
+
+      {clients.length > 0 && (
+        <div className="relative mb-5 max-w-md">
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            aria-label={t("clients.searchLabel")}
+            placeholder={t("clients.searchPlaceholder")}
+            className="pl-9"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      )}
+
+      {isApiConfigured && isPending ? (
+        <div className="space-y-3">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      ) : clients.length === 0 ? (
+        <EmptyState title={t("clients.emptyTitle")} description={t("clients.emptyHint")} />
+      ) : filtered.length === 0 ? (
+        <EmptyState title={t("clients.noResults")} description={t("clients.noResultsHint")} />
+      ) : (
+        <Card>
+          <CardContent className="divide-y divide-border p-0">
+            {filtered.map((client) => (
+              <div
+                key={client.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-4"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {client.company_name || client.name || t("common.unknownClient")}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[client.name, client.email, client.city].filter(Boolean).join(" · ") ||
+                      t("common.dash")}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      void navigate({ to: "/clients/$id/edit", params: { id: client.id } })
+                    }
+                  >
+                    <Pencil className="h-4 w-4" /> {t("common.edit")}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setPending(client)}>
+                    <Trash2 className="h-4 w-4" /> {t("common.delete")}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("clients.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("clients.deleteDescription", {
+                name: pending?.company_name || pending?.name || t("common.unknownClient"),
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={remove.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (pending) remove.mutate(pending);
+              }}
+            >
+              {remove.isPending ? t("common.deleting") : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
-  );
-}
-
-function ClientRow({ client }: { client: Client }) {
-  const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: () => deleteClient(client.id),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["clients"] });
-      toast.success("Klant succesvol verwijderd");
-    },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Klant verwijderen is mislukt.")),
-  });
-
-  const location = [client.postal_code, client.city].filter(Boolean).join(" ");
-
-  return (
-    <article className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="truncate font-semibold text-foreground">{client.name}</h2>
-          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-            {client.company_name && (
-              <span className="inline-flex items-center gap-1.5">
-                <Building2 className="h-4 w-4" />
-                {client.company_name}
-              </span>
-            )}
-            {client.email && (
-              <a
-                className="inline-flex items-center gap-1.5 hover:text-foreground"
-                href={`mailto:${client.email}`}
-              >
-                <Mail className="h-4 w-4" />
-                {client.email}
-              </a>
-            )}
-            {client.phone && (
-              <a
-                className="inline-flex items-center gap-1.5 hover:text-foreground"
-                href={`tel:${client.phone}`}
-              >
-                <Phone className="h-4 w-4" />
-                {client.phone}
-              </a>
-            )}
-            {location && (
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="h-4 w-4" />
-                {location}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to="/clients/$id/edit" params={{ id: client.id }}>
-              <Pencil /> Bewerken
-            </Link>
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" disabled={mutation.isPending}>
-                <Trash2 /> Verwijderen
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Klant verwijderen?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Weet u zeker dat u {client.name} wilt verwijderen? Deze actie kan niet ongedaan
-                  worden gemaakt.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={mutation.isPending}>Annuleren</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  disabled={mutation.isPending}
-                  onClick={() => mutation.mutate()}
-                >
-                  {mutation.isPending ? "Verwijderen…" : "Klant verwijderen"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function ClientsEmpty() {
-  return (
-    <div className="rounded-lg border border-dashed border-border px-6 py-14 text-center">
-      <Users className="mx-auto h-8 w-8 text-muted-foreground" />
-      <h2 className="mt-4 font-semibold text-foreground">Nog geen klanten</h2>
-      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-        Voeg uw eerste klant toe om offertes en facturen te kunnen maken.
-      </p>
-      <Button asChild className="mt-5">
-        <Link to="/clients/new">
-          <Plus /> Eerste klant toevoegen
-        </Link>
-      </Button>
-    </div>
-  );
-}
-
-function ClientsLoading() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-28 w-full" />
-      <Skeleton className="h-28 w-full" />
-    </div>
-  );
-}
-
-function ClientsError({ error }: { error: Error }) {
-  const router = useRouter();
-  return (
-    <div role="alert" className="rounded-lg border border-destructive/30 bg-card p-6">
-      <h1 className="font-semibold text-foreground">Klanten konden niet worden geladen</h1>
-      <p className="mt-1 text-sm text-destructive">{getApiErrorMessage(error)}</p>
-      <Button className="mt-4" variant="outline" onClick={() => void router.invalidate()}>
-        Opnieuw proberen
-      </Button>
-    </div>
   );
 }

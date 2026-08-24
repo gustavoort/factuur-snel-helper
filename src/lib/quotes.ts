@@ -1,5 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import api from "@/lib/api";
+import i18n from "@/i18n";
+import { asRecord, collection, downloadBlob, num, text } from "@/lib/normalize";
 
 export interface QuoteItemPayload {
   description: string;
@@ -46,41 +48,9 @@ export interface Quote {
   sent_at: string;
 }
 
-export const QUOTE_STATUS_LABELS: Record<string, string> = {
-  draft: "Concept",
-  sent: "Verzonden",
-  accepted: "Geaccepteerd",
-};
-
 export const VAT_RATES = [0, 9, 21];
 
-export function statusLabel(status: string) {
-  if (!status) return "Onbekend";
-  return QUOTE_STATUS_LABELS[status] ?? status.replace(/[_-]+/g, " ");
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function text(value: unknown, fallback = "") {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  return fallback;
-}
-
-function num(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
-function normalizeItem(value: unknown): QuoteItem {
+export function normalizeQuoteItem(value: unknown): QuoteItem {
   const row = asRecord(value) ?? {};
   return {
     description: text(row["description"]),
@@ -106,7 +76,7 @@ function normalizeQuote(value: unknown): Quote | null {
     client_name: text(row["client_name"] ?? client?.["name"]),
     client_company: text(row["client_company"] ?? client?.["company_name"]),
     client,
-    items: Array.isArray(row["items"]) ? row["items"].map(normalizeItem) : [],
+    items: Array.isArray(row["items"]) ? row["items"].map(normalizeQuoteItem) : [],
     notes: text(row["notes"]),
     validity_days: num(row["validity_days"]) ?? 30,
     valid_until: text(row["valid_until"]),
@@ -120,20 +90,10 @@ function normalizeQuote(value: unknown): Quote | null {
   };
 }
 
-function collection(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value;
-  const response = asRecord(value);
-  if (!response) return [];
-  for (const key of ["quotes", "items", "results", "data"] as const) {
-    if (Array.isArray(response[key])) return response[key];
-  }
-  return [];
-}
-
 function unwrapQuote(data: unknown): Quote {
   const response = asRecord(data);
   const quote = normalizeQuote(response?.["quote"] ?? response?.["data"] ?? data);
-  if (!quote) throw new Error("De server gaf ongeldige offertegegevens terug.");
+  if (!quote) throw new Error(i18n.t("errors.invalidQuoteData"));
   return quote;
 }
 
@@ -141,7 +101,7 @@ export async function getQuotes(status?: string): Promise<Quote[]> {
   const { data } = await api.get<unknown>("/quotes", {
     params: status ? { status } : undefined,
   });
-  return collection(data)
+  return collection(data, "quotes")
     .map(normalizeQuote)
     .filter((quote): quote is Quote => quote !== null);
 }
@@ -176,7 +136,7 @@ export async function convertQuote(id: string): Promise<{ id: string }> {
   const invoice = asRecord(response?.["invoice"]) ?? response;
   const invoiceId = invoice?.["id"] ?? invoice?.["invoice_id"] ?? response?.["invoice_id"];
   if (typeof invoiceId !== "string" && typeof invoiceId !== "number") {
-    throw new Error("De server gaf geen factuur-id terug.");
+    throw new Error(i18n.t("errors.noInvoiceId"));
   }
   return { id: String(invoiceId) };
 }
@@ -185,27 +145,20 @@ export async function downloadQuotePdf(id: string, quoteNumber: string) {
   const { data } = await api.get<Blob>(`/quotes/${encodeURIComponent(id)}/pdf`, {
     responseType: "blob",
   });
-  const url = URL.createObjectURL(data);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `offerte-${quoteNumber || id}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(data, `${i18n.t("quotes.pdfName")}-${quoteNumber || id}.pdf`);
 }
 
 export async function sendQuoteEmail(id: string): Promise<string> {
   const { data } = await api.post<unknown>(`/quotes/${encodeURIComponent(id)}/send-email`);
   const response = asRecord(data);
-  return text(response?.["message"], "Offerte per e-mail verzonden");
+  return text(response?.["message"], i18n.t("quotes.emailSent"));
 }
 
 export async function getQuoteWhatsapp(id: string): Promise<{ url: string; message: string }> {
   const { data } = await api.get<unknown>(`/quotes/${encodeURIComponent(id)}/whatsapp`);
   const response = asRecord(data);
   const url = text(response?.["whatsapp_url"]);
-  if (!url) throw new Error("De server gaf geen WhatsApp-link terug.");
+  if (!url) throw new Error(i18n.t("errors.noWhatsappUrl"));
   return { url, message: text(response?.["message"]) };
 }
 
@@ -218,19 +171,6 @@ export function computeTotals(items: QuoteItemPayload[]) {
     vat += (line * (Number(item.vat_rate) || 0)) / 100;
   }
   return { subtotal, vat, total: subtotal + vat };
-}
-
-const euro = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
-
-export function formatCurrency(value: number | null | undefined) {
-  return euro.format(typeof value === "number" && Number.isFinite(value) ? value : 0);
-}
-
-export function formatDate(value: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(date);
 }
 
 export const quotesQueryOptions = (status?: string) =>

@@ -1,51 +1,44 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api";
+import { createClient, emptyClient, type ClientPayload } from "@/lib/clients";
 import { PageHeader } from "@/components/PageHeader";
 import { ClientForm } from "@/components/clients/ClientForm";
-import { createClient, emptyClient, type ClientPayload } from "@/lib/clients";
-import { getApiErrorMessage } from "@/lib/api";
+import { pageMeta } from "@/i18n/head";
 
 export const Route = createFileRoute("/_authenticated/clients/new")({
-  head: () => ({
-    meta: [
-      { title: "Nieuwe klant — FactuurSnel" },
-      { name: "description", content: "Voeg een nieuwe klant toe." },
-      { property: "og:title", content: "Nieuwe klant — FactuurSnel" },
-      { property: "og:description", content: "Voeg een nieuwe klant toe." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () => ({ meta: pageMeta("clients.newTitle", "clients.newDescription") }),
   component: NewClientPage,
 });
 
 function NewClientPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: createClient,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["clients"] });
-      toast.success("Klant succesvol toegevoegd");
-      await navigate({ to: "/clients", search: { q: "" } });
-    },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Klant toevoegen is mislukt.")),
-  });
 
-  const submit = async (values: ClientPayload) => {
-    await mutation.mutateAsync(values).catch(() => undefined);
-  };
+  const create = useMutation({
+    mutationFn: (values: ClientPayload) => createClient(values),
+    onSuccess: async () => {
+      toast.success(t("clients.created"));
+      await queryClient.invalidateQueries({ queryKey: ["clients"] });
+      void navigate({ to: "/clients" });
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, t("clients.createFailed"))),
+  });
 
   return (
     <>
-      <PageHeader title="Nieuwe klant" description="Voeg een nieuwe klant toe." />
+      <PageHeader title={t("clients.newTitle")} description={t("clients.newDescription")} />
       <ClientForm
         defaultValues={emptyClient}
-        submitLabel="Klant toevoegen"
-        isSubmitting={mutation.isPending}
-        onSubmit={submit}
-        onCancel={() => void navigate({ to: "/clients", search: { q: "" } })}
+        submitLabel={t("clients.submitNew")}
+        isSubmitting={create.isPending}
+        onSubmit={async (values) => {
+          await create.mutateAsync(values).catch(() => undefined);
+        }}
+        onCancel={() => void navigate({ to: "/clients" })}
       />
     </>
   );

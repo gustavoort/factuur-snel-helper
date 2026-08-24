@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { AxiosError } from "axios";
 import api, { isApiConfigured, getApiErrorMessage } from "@/lib/api";
@@ -7,29 +8,22 @@ import { PageHeader, EmptyState } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusBadge } from "@/components/StatusBadge";
+import { formatCurrency } from "@/i18n/format";
+import { collection, asRecord, num, text } from "@/lib/normalize";
+import { pageMeta } from "@/i18n/head";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({
-    meta: [
-      { title: "Dashboard — FactuurSnel" },
-      { name: "description", content: "Overzicht van je omzet, openstaande facturen en klanten." },
-      { property: "og:title", content: "Dashboard — FactuurSnel" },
-      { property: "og:description", content: "Overzicht van je omzet, openstaande facturen en klanten." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () => ({ meta: pageMeta("dashboard.title", "dashboard.description") }),
   component: DashboardPage,
 });
 
 interface DashboardRow {
-  id?: string | number;
-  number?: string;
-  invoice_number?: string;
-  quote_number?: string;
-  client_name?: string;
-  total?: number;
-  status?: string;
+  id: string;
+  number: string;
+  clientName: string;
+  total: number | null;
+  status: string;
 }
 
 interface DashboardData {
@@ -42,31 +36,38 @@ interface DashboardData {
   recent_invoices?: unknown;
 }
 
-const euro = (v: number | undefined) =>
-  new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(v ?? 0);
-
-function dashboardRows(value: unknown): DashboardRow[] {
-  if (Array.isArray(value)) return value as DashboardRow[];
-  if (value && typeof value === "object") {
-    const nested = (value as { items?: unknown; results?: unknown; data?: unknown }).items
-      ?? (value as { results?: unknown }).results
-      ?? (value as { data?: unknown }).data;
-    if (Array.isArray(nested)) return nested as DashboardRow[];
-  }
-  return [];
+function dashboardRows(value: unknown, kind: "invoice" | "quote"): DashboardRow[] {
+  return collection(value, kind === "invoice" ? "invoices" : "quotes").map((item, index) => {
+    const row = asRecord(item) ?? {};
+    return {
+      id: text(row["id"], String(index)),
+      number: text(
+        row["number"] ?? row[kind === "invoice" ? "invoice_number" : "quote_number"],
+        `#${index + 1}`,
+      ),
+      clientName: text(row["client_name"] ?? asRecord(row["client"])?.["name"]),
+      total: num(row["total"]),
+      status: text(row["status"]),
+    };
+  });
 }
 
-function RecentList({ rows, kind }: { rows: DashboardRow[]; kind: "invoice" | "quote" }) {
+function RecentList({ rows }: { rows: DashboardRow[] }) {
   return (
     <Card>
       <CardContent className="divide-y divide-border p-0">
-        {rows.map((row, i) => (
-          <div key={row.id ?? i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+        {rows.map((row) => (
+          <div key={row.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
             <span className="min-w-0 truncate text-foreground">
-              {row.number ?? (kind === "invoice" ? row.invoice_number : row.quote_number) ?? `#${row.id ?? i + 1}`}
-              {row.client_name ? <span className="text-muted-foreground"> · {row.client_name}</span> : null}
+              {row.number}
+              {row.clientName ? (
+                <span className="text-muted-foreground"> · {row.clientName}</span>
+              ) : null}
             </span>
-            <span className="shrink-0 text-muted-foreground">{euro(row.total)}</span>
+            <span className="flex shrink-0 items-center gap-3">
+              {row.status ? <StatusBadge status={row.status} /> : null}
+              <span className="text-muted-foreground">{formatCurrency(row.total)}</span>
+            </span>
           </div>
         ))}
       </CardContent>
@@ -75,6 +76,7 @@ function RecentList({ rows, kind }: { rows: DashboardRow[]; kind: "invoice" | "q
 }
 
 function DashboardPage() {
+  const { t } = useTranslation();
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => (await api.get<DashboardData>("/dashboard")).data,
@@ -87,32 +89,32 @@ function DashboardPage() {
   const hasData = Boolean(data);
 
   const stats = [
-    { label: "Omzet", value: euro(data?.paid_revenue) },
-    { label: "Openstaand", value: euro(data?.outstanding) },
-    { label: "Facturen", value: String(data?.total_invoices ?? 0) },
-    { label: "Klanten", value: String(data?.total_clients ?? 0) },
+    { label: t("dashboard.revenue"), value: formatCurrency(data?.paid_revenue) },
+    { label: t("dashboard.outstanding"), value: formatCurrency(data?.outstanding) },
+    { label: t("dashboard.invoices"), value: String(data?.total_invoices ?? 0) },
+    { label: t("dashboard.clients"), value: String(data?.total_clients ?? 0) },
   ];
 
-  const recentInvoices = dashboardRows(data?.recent_invoices);
-  const recentQuotes = dashboardRows(data?.recent_quotes);
+  const recentInvoices = dashboardRows(data?.recent_invoices, "invoice");
+  const recentQuotes = dashboardRows(data?.recent_quotes, "quote");
 
   return (
     <>
       <PageHeader
-        title="Dashboard"
-        description="Je financiële overzicht in één oogopslag."
+        title={t("dashboard.title")}
+        description={t("dashboard.description")}
         actions={
           <>
             <Button asChild>
               <Link to="/invoices/new">
-                <Plus className="h-4 w-4" /> Nieuwe factuur
+                <Plus className="h-4 w-4" /> {t("dashboard.newInvoice")}
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/quotes/new">Nieuwe offerte</Link>
+              <Link to="/quotes/new">{t("dashboard.newQuote")}</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/clients/new">Nieuwe klant</Link>
+              <Link to="/clients/new">{t("dashboard.newClient")}</Link>
             </Button>
           </>
         }
@@ -120,15 +122,14 @@ function DashboardPage() {
 
       {!isApiConfigured && (
         <div className="mb-6 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-          Stel <code className="font-mono">VITE_API_URL</code> in (volledige URL van de FastAPI-backend) om live data te
-          laden.
+          {t("common.apiNotConfigured")}
         </div>
       )}
       {isError && (
         <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
           {isUnauthorized
-            ? "Je sessie is verlopen. Log opnieuw in."
-            : getApiErrorMessage(error, "Kon dashboardgegevens niet laden.")}
+            ? t("errors.sessionExpired")
+            : getApiErrorMessage(error, t("dashboard.loadFailed"))}
         </div>
       )}
 
@@ -142,7 +143,9 @@ function DashboardPage() {
               {loading ? (
                 <Skeleton className="h-7 w-24" />
               ) : (
-                <p className="text-2xl font-semibold tracking-tight text-foreground">{hasData ? s.value : "—"}</p>
+                <p className="text-2xl font-semibold tracking-tight text-foreground">
+                  {hasData ? s.value : t("common.dash")}
+                </p>
               )}
             </CardContent>
           </Card>
@@ -151,24 +154,31 @@ function DashboardPage() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-foreground">Recente facturen</h2>
+          <h2 className="mb-3 text-sm font-semibold text-foreground">
+            {t("dashboard.recentInvoices")}
+          </h2>
           {loading ? (
             <Skeleton className="h-24 w-full" />
           ) : recentInvoices.length === 0 ? (
-            <EmptyState title="Nog geen facturen" description="Maak je eerste factuur aan." />
+            <EmptyState
+              title={t("dashboard.noInvoices")}
+              description={t("dashboard.noInvoicesHint")}
+            />
           ) : (
-            <RecentList rows={recentInvoices} kind="invoice" />
+            <RecentList rows={recentInvoices} />
           )}
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-foreground">Recente offertes</h2>
+          <h2 className="mb-3 text-sm font-semibold text-foreground">
+            {t("dashboard.recentQuotes")}
+          </h2>
           {loading ? (
             <Skeleton className="h-24 w-full" />
           ) : recentQuotes.length === 0 ? (
-            <EmptyState title="Nog geen offertes" description="Maak je eerste offerte aan." />
+            <EmptyState title={t("dashboard.noQuotes")} description={t("dashboard.noQuotesHint")} />
           ) : (
-            <RecentList rows={recentQuotes} kind="quote" />
+            <RecentList rows={recentQuotes} />
           )}
         </section>
       </div>
