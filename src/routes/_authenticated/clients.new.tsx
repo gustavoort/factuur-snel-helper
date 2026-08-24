@@ -1,5 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader, EmptyState } from "@/components/PageHeader";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { PageHeader } from "@/components/PageHeader";
+import { ClientForm } from "@/components/clients/ClientForm";
+import { createClient, emptyClient, type ClientPayload } from "@/lib/clients";
+import { getApiErrorMessage } from "@/lib/api";
 
 export const Route = createFileRoute("/_authenticated/clients/new")({
   head: () => ({
@@ -12,14 +17,36 @@ export const Route = createFileRoute("/_authenticated/clients/new")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Page,
+  component: NewClientPage,
 });
 
-function Page() {
+function NewClientPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: createClient,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Klant succesvol toegevoegd");
+      await navigate({ to: "/clients" });
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, "Klant toevoegen is mislukt.")),
+  });
+
+  const submit = async (values: ClientPayload) => {
+    await mutation.mutateAsync(values).catch(() => undefined);
+  };
+
   return (
     <>
       <PageHeader title="Nieuwe klant" description="Voeg een nieuwe klant toe." />
-      <EmptyState title="Binnenkort beschikbaar" description="Deze module wordt in de volgende stap uitgewerkt." />
+      <ClientForm
+        defaultValues={emptyClient}
+        submitLabel="Klant toevoegen"
+        isSubmitting={mutation.isPending}
+        onSubmit={submit}
+        onCancel={() => void navigate({ to: "/clients" })}
+      />
     </>
   );
 }
