@@ -1,9 +1,23 @@
-import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Copy, Download, FileCheck2, Mail, MessageCircle, Pencil, Trash2 } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/PageHeader";
+import { ArrowLeft, Download, Mail, MessageCircle, Copy, Pencil, Trash2, FileUp } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/api";
+import {
+  convertQuote,
+  deleteQuote,
+  downloadQuotePdf,
+  duplicateQuote,
+  getQuoteWhatsapp,
+  quoteQueryOptions,
+  sendQuoteEmail,
+} from "@/lib/quotes";
+import { PageHeader, EmptyState } from "@/components/PageHeader";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -14,333 +28,263 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { QuoteStatusBadge } from "@/components/quotes/QuoteStatusBadge";
-import {
-  convertQuote,
-  deleteQuote,
-  downloadQuotePdf,
-  duplicateQuote,
-  formatCurrency,
-  formatDate,
-  getQuoteWhatsapp,
-  quoteQueryOptions,
-  sendQuoteEmail,
-} from "@/lib/quotes";
-import { getApiErrorMessage } from "@/lib/api";
+import { formatCurrency, formatDate, formatNumber } from "@/i18n/format";
+import { pageMeta } from "@/i18n/head";
 
 export const Route = createFileRoute("/_authenticated/quotes/$id/")({
-  loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(quoteQueryOptions(params.id)),
-  head: () => ({
-    meta: [
-      { title: "Offerte — FactuurSnel" },
-      { name: "description", content: "Bekijk, verstuur of converteer deze offerte." },
-      { property: "og:title", content: "Offerte — FactuurSnel" },
-      { property: "og:description", content: "Bekijk, verstuur of converteer deze offerte." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  pendingComponent: () => <Skeleton className="h-96 w-full" />,
-  errorComponent: QuoteDetailError,
-  notFoundComponent: () => <p role="alert">Offerte niet gevonden.</p>,
+  head: () => ({ meta: pageMeta("quotes.detailTitle", "quotes.detailDescription") }),
   component: QuoteDetailPage,
 });
 
 function QuoteDetailPage() {
   const { id } = Route.useParams();
-  const { data: quote } = useSuspenseQuery(quoteQueryOptions(id));
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [confirm, setConfirm] = useState<"delete" | "convert" | null>(null);
 
-  const invalidateAll = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["quotes"] }),
-      queryClient.invalidateQueries({ queryKey: ["quote", id] }),
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-    ]);
+  const { data, isPending, isError, error } = useQuery({ ...quoteQueryOptions(id), retry: false });
 
-  const duplicate = useMutation({
-    mutationFn: () => duplicateQuote(id),
-    onSuccess: async (created) => {
-      await queryClient.invalidateQueries({ queryKey: ["quotes"] });
-      toast.success("Offerte gedupliceerd");
-      await navigate({ to: "/quotes/$id", params: { id: created.id } });
-    },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Dupliceren is mislukt.")),
-  });
-
-  const convert = useMutation({
-    mutationFn: () => convertQuote(id),
-    onSuccess: async (invoice) => {
-      await Promise.all([
-        invalidateAll(),
-        queryClient.invalidateQueries({ queryKey: ["invoices"] }),
-      ]);
-      toast.success("Factuur succesvol aangemaakt");
-      await navigate({ to: "/invoices/$id", params: { id: invoice.id } });
-    },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Omzetten is mislukt.")),
-  });
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["quotes"] });
+    await queryClient.invalidateQueries({ queryKey: ["quote", id] });
+    await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  };
 
   const pdf = useMutation({
-    mutationFn: () => downloadQuotePdf(id, quote.quote_number),
-    onError: (error) => toast.error(getApiErrorMessage(error, "PDF downloaden is mislukt.")),
-  });
-
-  const whatsapp = useMutation({
-    mutationFn: () => getQuoteWhatsapp(id),
-    onSuccess: (result) => {
-      window.open(result.url, "_blank", "noopener,noreferrer");
-    },
-    onError: (error) => toast.error(getApiErrorMessage(error, "WhatsApp-link ophalen is mislukt.")),
+    mutationFn: () => downloadQuotePdf(id, data?.quote_number ?? ""),
+    onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.pdfFailed"))),
   });
 
   const email = useMutation({
     mutationFn: () => sendQuoteEmail(id),
     onSuccess: async (message) => {
-      await invalidateAll();
       toast.success(message);
+      await invalidate();
     },
-    onError: (error) => toast.error(getApiErrorMessage(error, "E-mail verzenden is mislukt.")),
+    onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.emailFailed"))),
+  });
+
+  const whatsapp = useMutation({
+    mutationFn: () => getQuoteWhatsapp(id),
+    onSuccess: ({ url }) => window.open(url, "_blank", "noopener,noreferrer"),
+    onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.whatsappFailed"))),
+  });
+
+  const duplicate = useMutation({
+    mutationFn: () => duplicateQuote(id),
+    onSuccess: async (quote) => {
+      toast.success(t("quotes.duplicated"));
+      await invalidate();
+      void navigate({ to: "/quotes/$id", params: { id: quote.id } });
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.duplicateFailed"))),
+  });
+
+  const convert = useMutation({
+    mutationFn: () => convertQuote(id),
+    onSuccess: async (invoice) => {
+      toast.success(t("quotes.converted"));
+      setConfirm(null);
+      await invalidate();
+      await queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      void navigate({ to: "/invoices/$id", params: { id: invoice.id } });
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.convertFailed"))),
   });
 
   const remove = useMutation({
     mutationFn: () => deleteQuote(id),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["quotes"] }),
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-      ]);
-      toast.success("Offerte succesvol verwijderd");
-      await navigate({ to: "/quotes", search: { status: "" } });
+      toast.success(t("quotes.deleted"));
+      setConfirm(null);
+      await invalidate();
+      void navigate({ to: "/quotes" });
     },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Verwijderen is mislukt.")),
+    onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.deleteFailed"))),
   });
 
+  if (isPending) return <Skeleton className="h-96 w-full" />;
+  if (isError) {
+    return (
+      <EmptyState
+        title={t("quotes.detailLoadFailed")}
+        description={getApiErrorMessage(error, t("quotes.notFound"))}
+      />
+    );
+  }
+
   const busy =
+    pdf.isPending ||
+    email.isPending ||
+    whatsapp.isPending ||
     duplicate.isPending ||
     convert.isPending ||
-    pdf.isPending ||
-    whatsapp.isPending ||
-    email.isPending ||
     remove.isPending;
 
   return (
     <>
+      <Link
+        to="/quotes"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> {t("quotes.title")}
+      </Link>
+
       <PageHeader
-        title={quote.quote_number ? `Offerte ${quote.quote_number}` : "Offerte"}
-        description={quote.client_company || quote.client_name || ""}
+        title={`${t("quotes.label")} ${data.quote_number}`.trim()}
+        description={data.client_company || data.client_name || t("common.unknownClient")}
         actions={
           <>
-            <Button asChild variant="outline" size="sm">
+            <Button variant="outline" disabled={busy} onClick={() => pdf.mutate()}>
+              <Download className="h-4 w-4" /> {t("common.downloadPdf")}
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => email.mutate()}>
+              <Mail className="h-4 w-4" /> {t("common.sendEmail")}
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => whatsapp.mutate()}>
+              <MessageCircle className="h-4 w-4" /> {t("common.shareWhatsapp")}
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => duplicate.mutate()}>
+              <Copy className="h-4 w-4" /> {t("common.duplicate")}
+            </Button>
+            <Button disabled={busy} onClick={() => setConfirm("convert")}>
+              <FileUp className="h-4 w-4" /> {t("quotes.convert")}
+            </Button>
+            <Button asChild variant="outline">
               <Link to="/quotes/$id/edit" params={{ id }}>
-                <Pencil /> Bewerken
+                <Pencil className="h-4 w-4" /> {t("common.edit")}
               </Link>
             </Button>
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => duplicate.mutate()}>
-              <Copy /> Dupliceren
+            <Button variant="ghost" disabled={busy} onClick={() => setConfirm("delete")}>
+              <Trash2 className="h-4 w-4" /> {t("common.delete")}
             </Button>
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => pdf.mutate()}>
-              <Download /> Download PDF
-            </Button>
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => whatsapp.mutate()}>
-              <MessageCircle /> Via WhatsApp delen
-            </Button>
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => email.mutate()}>
-              <Mail /> Per e-mail verzenden
-            </Button>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" disabled={busy}>
-                  <FileCheck2 /> Omzetten naar factuur
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Deze offerte omzetten naar een factuur?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    De offerte wordt daarbij op geaccepteerd gezet.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={convert.isPending}>Annuleren</AlertDialogCancel>
-                  <AlertDialogAction disabled={convert.isPending} onClick={() => convert.mutate()}>
-                    {convert.isPending ? "Bezig…" : "Omzetten"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={busy}>
-                  <Trash2 /> Verwijderen
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Offerte verwijderen?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Weet u zeker dat u deze offerte wilt verwijderen? Deze actie kan niet ongedaan
-                    worden gemaakt.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={remove.isPending}>Annuleren</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate()}
-                  >
-                    {remove.isPending ? "Verwijderen…" : "Offerte verwijderen"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </>
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <section className="rounded-lg border border-border bg-card p-5 shadow-sm lg:col-span-2">
-          <h2 className="mb-4 font-semibold text-foreground">Regels</h2>
-          {quote.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Deze offerte heeft geen regels.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                    <th className="pb-2 font-medium">Omschrijving</th>
-                    <th className="pb-2 text-right font-medium">Aantal</th>
-                    <th className="pb-2 text-right font-medium">Prijs</th>
-                    <th className="pb-2 text-right font-medium">BTW</th>
-                    <th className="pb-2 text-right font-medium">Totaal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {quote.items.map((item, index) => (
-                    <tr key={`${item.description}-${index}`} className="border-b border-border/60">
-                      <td className="py-2.5 text-foreground">{item.description}</td>
-                      <td className="py-2.5 text-right text-foreground">{item.quantity}</td>
-                      <td className="py-2.5 text-right text-foreground">
-                        {formatCurrency(item.unit_price)}
-                      </td>
-                      <td className="py-2.5 text-right text-foreground">{item.vat_rate}%</td>
-                      <td className="py-2.5 text-right font-medium text-foreground">
-                        {formatCurrency(
-                          item.total ?? item.quantity * item.unit_price * (1 + item.vat_rate / 100),
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <dl className="mt-5 space-y-2 border-t border-border pt-4 text-sm sm:ml-auto sm:max-w-xs">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Subtotaal</dt>
-              <dd className="font-medium text-foreground">{formatCurrency(quote.subtotal)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">BTW</dt>
-              <dd className="font-medium text-foreground">{formatCurrency(quote.vat_total)}</dd>
-            </div>
-            <div className="flex justify-between border-t border-border pt-2 text-base">
-              <dt className="font-semibold text-foreground">Totaal</dt>
-              <dd className="font-semibold text-foreground">{formatCurrency(quote.total)}</dd>
-            </div>
-          </dl>
-
-          {quote.notes && (
-            <div className="mt-6 border-t border-border pt-4">
-              <h3 className="text-sm font-medium text-foreground">Notities</h3>
-              <p className="mt-1.5 whitespace-pre-wrap text-sm text-muted-foreground">
-                {quote.notes}
-              </p>
-            </div>
-          )}
-        </section>
-
-        <aside className="space-y-5">
-          <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-            <h2 className="mb-3 font-semibold text-foreground">Gegevens</h2>
-            <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="text-xs text-muted-foreground">Status</dt>
-                <dd className="mt-1">
-                  <QuoteStatusBadge status={quote.status} />
-                </dd>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardContent className="p-0">
+            {data.items.length === 0 ? (
+              <p className="p-6 text-sm text-muted-foreground">{t("quotes.noLines")}</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {data.items.map((item, index) => (
+                  <div
+                    key={`${item.description}-${index}`}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-foreground">
+                      {item.description}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {formatNumber(item.quantity)} × {formatCurrency(item.unit_price)} ·{" "}
+                      {formatNumber(item.vat_rate, 0)}% {t("common.vat")}
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {formatCurrency(
+                        item.total ?? item.quantity * item.unit_price * (1 + item.vat_rate / 100),
+                      )}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Offertenummer</dt>
-                <dd className="text-foreground">{quote.quote_number || "—"}</dd>
+            )}
+            <dl className="space-y-2 border-t border-border p-4 text-sm sm:ml-auto sm:max-w-xs">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">{t("common.subtotal")}</dt>
+                <dd className="font-medium text-foreground">{formatCurrency(data.subtotal)}</dd>
               </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Aangemaakt op</dt>
-                <dd className="text-foreground">{formatDate(quote.created_at)}</dd>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">{t("common.vat")}</dt>
+                <dd className="font-medium text-foreground">{formatCurrency(data.vat_total)}</dd>
               </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Geldig tot</dt>
-                <dd className="text-foreground">{formatDate(quote.valid_until)}</dd>
+              <div className="flex justify-between border-t border-border pt-2 text-base">
+                <dt className="font-semibold text-foreground">{t("common.total")}</dt>
+                <dd className="font-semibold text-foreground">{formatCurrency(data.total)}</dd>
               </div>
-              {quote.sent_at && (
-                <div>
-                  <dt className="text-xs text-muted-foreground">Verzonden op</dt>
-                  <dd className="text-foreground">{formatDate(quote.sent_at)}</dd>
-                </div>
-              )}
             </dl>
-          </section>
+          </CardContent>
+        </Card>
 
-          <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-            <h2 className="mb-3 font-semibold text-foreground">Klant</h2>
-            <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="text-xs text-muted-foreground">Naam</dt>
-                <dd className="text-foreground">{quote.client_name || "—"}</dd>
+        <Card>
+          <CardContent className="space-y-4 p-5 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground">{t("common.status")}</p>
+              <div className="mt-1">
+                <StatusBadge status={data.status} />
               </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("quotes.number")}</p>
+              <p className="text-foreground">{data.quote_number || t("common.dash")}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("common.createdAt")}</p>
+              <p className="text-foreground">{formatDate(data.created_at) || t("common.dash")}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("common.validUntil")}</p>
+              <p className="text-foreground">{formatDate(data.valid_until) || t("common.dash")}</p>
+            </div>
+            {data.sent_at && (
               <div>
-                <dt className="text-xs text-muted-foreground">Bedrijf</dt>
-                <dd className="text-foreground">{quote.client_company || "—"}</dd>
+                <p className="text-xs text-muted-foreground">{t("common.sentAt")}</p>
+                <p className="text-foreground">{formatDate(data.sent_at)}</p>
               </div>
-              {quote.client_id && (
-                <div>
-                  <dt className="text-xs text-muted-foreground">Klantkaart</dt>
-                  <dd>
-                    <Link
-                      to="/clients/$id/edit"
-                      params={{ id: quote.client_id }}
-                      className="text-primary hover:underline"
-                    >
-                      Klant bekijken
-                    </Link>
-                  </dd>
-                </div>
-              )}
-            </dl>
-          </section>
-        </aside>
+            )}
+            {data.client_id && (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/clients/$id/edit" params={{ id: data.client_id }}>
+                  {t("common.viewClient")}
+                </Link>
+              </Button>
+            )}
+            {data.notes && (
+              <div>
+                <p className="text-xs text-muted-foreground">{t("common.notes")}</p>
+                <p className="whitespace-pre-line text-foreground">{data.notes}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </>
-  );
-}
 
-function QuoteDetailError({ error }: { error: Error }) {
-  const router = useRouter();
-  return (
-    <div role="alert" className="rounded-lg border border-destructive/30 bg-card p-6">
-      <h1 className="font-semibold text-foreground">Offerte kon niet worden geladen</h1>
-      <p className="mt-1 text-sm text-destructive">{getApiErrorMessage(error)}</p>
-      <Button className="mt-4" variant="outline" onClick={() => void router.invalidate()}>
-        Opnieuw proberen
-      </Button>
-    </div>
+      <AlertDialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirm === "convert" ? t("quotes.convertTitle") : t("quotes.deleteTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm === "convert"
+                ? t("quotes.convertDescription")
+                : t("quotes.deleteDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirm === "convert") convert.mutate();
+                else remove.mutate();
+              }}
+            >
+              {confirm === "convert"
+                ? convert.isPending
+                  ? t("quotes.converting")
+                  : t("quotes.convertAction")
+                : remove.isPending
+                  ? t("common.deleting")
+                  : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
