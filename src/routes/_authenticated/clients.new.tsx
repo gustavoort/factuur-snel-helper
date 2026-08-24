@@ -28,7 +28,7 @@ function NewClientPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast.success("Klant succesvol toegevoegd");
-      await navigate({ to: "/clients" });
+      await navigate({ to: "/clients", search: { q: "" } });
     },
     onError: (error) => toast.error(getApiErrorMessage(error, "Klant toevoegen is mislukt.")),
   });
@@ -45,7 +45,7 @@ function NewClientPage() {
         submitLabel="Klant toevoegen"
         isSubmitting={mutation.isPending}
         onSubmit={submit}
-        onCancel={() => void navigate({ to: "/clients" })}
+        onCancel={() => void navigate({ to: "/clients", search: { q: "" } })}
       />
     </>
   );

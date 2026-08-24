@@ -41,19 +41,19 @@ function text(value: unknown, fallback = "") {
 
 function normalizeClient(value: unknown): Client | null {
   const row = asRecord(value);
-  if (!row || (typeof row.id !== "string" && typeof row.id !== "number")) return null;
+  if (!row || (typeof row["id"] !== "string" && typeof row["id"] !== "number")) return null;
 
   return {
-    id: String(row.id),
-    name: text(row.name),
-    company_name: text(row.company_name),
-    email: text(row.email),
-    phone: text(row.phone),
-    address: text(row.address),
-    postal_code: text(row.postal_code),
-    city: text(row.city),
-    country: text(row.country, "Nederland"),
-    notes: text(row.notes),
+    id: String(row["id"]),
+    name: text(row["name"]),
+    company_name: text(row["company_name"]),
+    email: text(row["email"]),
+    phone: text(row["phone"]),
+    address: text(row["address"]),
+    postal_code: text(row["postal_code"]),
+    city: text(row["city"]),
+    country: text(row["country"], "Nederland"),
+    notes: text(row["notes"]),
   };
 }
 
@@ -76,7 +76,7 @@ export async function getClients(): Promise<Client[]> {
 export async function getClient(id: string): Promise<Client> {
   const { data } = await api.get<unknown>(`/clients/${encodeURIComponent(id)}`);
   const response = asRecord(data);
-  const client = normalizeClient(response?.client ?? response?.data ?? data);
+  const client = normalizeClient(response?.["client"] ?? response?.["data"] ?? data);
   if (!client) throw new Error("De server gaf ongeldige klantgegevens terug.");
   return client;
 }

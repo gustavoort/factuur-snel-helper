@@ -22,7 +22,7 @@ import { getApiErrorMessage } from "@/lib/api";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
   validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === "string" ? search.q : "",
+    q: typeof search["q"] === "string" ? search["q"] : "",
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(clientsQueryOptions()),
   head: () => ({

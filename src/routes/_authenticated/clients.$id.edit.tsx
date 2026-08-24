@@ -39,7 +39,7 @@ function EditClientPage() {
         queryClient.invalidateQueries({ queryKey: ["clients", id] }),
       ]);
       toast.success("Klant succesvol bijgewerkt");
-      await navigate({ to: "/clients" });
+      await navigate({ to: "/clients", search: { q: "" } });
     },
     onError: (error) => toast.error(getApiErrorMessage(error, "Klant bijwerken is mislukt.")),
   });
@@ -56,7 +56,7 @@ function EditClientPage() {
         submitLabel="Wijzigingen opslaan"
         isSubmitting={mutation.isPending}
         onSubmit={submit}
-        onCancel={() => void navigate({ to: "/clients" })}
+        onCancel={() => void navigate({ to: "/clients", search: { q: "" } })}
       />
     </>
   );
