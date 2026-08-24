@@ -70,7 +70,9 @@ function collection(value: unknown): unknown[] {
 
 export async function getClients(): Promise<Client[]> {
   const { data } = await api.get<unknown>("/clients");
-  return collection(data).map(normalizeClient).filter((client): client is Client => client !== null);
+  return collection(data)
+    .map(normalizeClient)
+    .filter((client): client is Client => client !== null);
 }
 
 export async function getClient(id: string): Promise<Client> {

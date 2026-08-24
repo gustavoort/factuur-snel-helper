@@ -124,19 +124,35 @@ function ClientRow({ client }: { client: Client }) {
           <h2 className="truncate font-semibold text-foreground">{client.name}</h2>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
             {client.company_name && (
-              <span className="inline-flex items-center gap-1.5"><Building2 className="h-4 w-4" />{client.company_name}</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Building2 className="h-4 w-4" />
+                {client.company_name}
+              </span>
             )}
             {client.email && (
-              <a className="inline-flex items-center gap-1.5 hover:text-foreground" href={`mailto:${client.email}`}>
-                <Mail className="h-4 w-4" />{client.email}
+              <a
+                className="inline-flex items-center gap-1.5 hover:text-foreground"
+                href={`mailto:${client.email}`}
+              >
+                <Mail className="h-4 w-4" />
+                {client.email}
               </a>
             )}
             {client.phone && (
-              <a className="inline-flex items-center gap-1.5 hover:text-foreground" href={`tel:${client.phone}`}>
-                <Phone className="h-4 w-4" />{client.phone}
+              <a
+                className="inline-flex items-center gap-1.5 hover:text-foreground"
+                href={`tel:${client.phone}`}
+              >
+                <Phone className="h-4 w-4" />
+                {client.phone}
               </a>
             )}
-            {location && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{location}</span>}
+            {location && (
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-4 w-4" />
+                {location}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
@@ -155,7 +171,8 @@ function ClientRow({ client }: { client: Client }) {
               <AlertDialogHeader>
                 <AlertDialogTitle>Klant verwijderen?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Weet u zeker dat u {client.name} wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+                  Weet u zeker dat u {client.name} wilt verwijderen? Deze actie kan niet ongedaan
+                  worden gemaakt.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -185,7 +202,9 @@ function ClientsEmpty() {
         Voeg uw eerste klant toe om offertes en facturen te kunnen maken.
       </p>
       <Button asChild className="mt-5">
-        <Link to="/clients/new"><Plus /> Eerste klant toevoegen</Link>
+        <Link to="/clients/new">
+          <Plus /> Eerste klant toevoegen
+        </Link>
       </Button>
     </div>
   );

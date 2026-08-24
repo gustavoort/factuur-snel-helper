@@ -9,7 +9,8 @@ import { clientQueryOptions, updateClient, type ClientPayload } from "@/lib/clie
 import { getApiErrorMessage } from "@/lib/api";
 
 export const Route = createFileRoute("/_authenticated/clients/$id/edit")({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(clientQueryOptions(params.id)),
+  loader: ({ context, params }) =>
+    context.queryClient.ensureQueryData(clientQueryOptions(params.id)),
   head: () => ({
     meta: [
       { title: "Klant bewerken — FactuurSnel" },

@@ -17,7 +17,12 @@ import { Textarea } from "@/components/ui/textarea";
 const clientSchema = z.object({
   name: z.string().trim().min(1, "Naam is verplicht."),
   company_name: z.string(),
-  email: z.string().refine((value) => !value || z.string().email().safeParse(value).success, "Vul een geldig e-mailadres in."),
+  email: z
+    .string()
+    .refine(
+      (value) => !value || z.string().email().safeParse(value).success,
+      "Vul een geldig e-mailadres in.",
+    ),
   phone: z.string(),
   address: z.string(),
   postal_code: z.string(),
