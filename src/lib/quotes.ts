@@ -19,7 +19,7 @@ export interface QuoteUpdatePayload {
   items: QuoteItemPayload[];
   notes: string;
   validity_days: number;
-  status?: string;
+  status?: string | undefined;
 }
 
 export interface QuoteItem extends QuoteItemPayload {

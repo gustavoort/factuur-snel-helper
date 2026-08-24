@@ -150,7 +150,8 @@ export function QuoteForm({
             {fields.map((item, index) => {
               const row = watchedItems[index];
               const lineTotal =
-                (Number(row?.quantity) || 0) * (Number(row?.unit_price) || 0) *
+                (Number(row?.quantity) || 0) *
+                (Number(row?.unit_price) || 0) *
                 (1 + (Number(row?.vat_rate) || 0) / 100);
 
               return (
@@ -178,7 +179,13 @@ export function QuoteForm({
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Aantal</FormLabel>
                         <FormControl>
-                          <Input type="number" min="0" step="0.01" disabled={isSubmitting} {...field} />
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            disabled={isSubmitting}
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -191,7 +198,13 @@ export function QuoteForm({
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Prijs</FormLabel>
                         <FormControl>
-                          <Input type="number" min="0" step="0.01" disabled={isSubmitting} {...field} />
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            disabled={isSubmitting}
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -278,7 +291,14 @@ export function QuoteForm({
                 <FormItem>
                   <FormLabel>Geldigheid (dagen)</FormLabel>
                   <FormControl>
-                    <Input type="number" min="1" max="365" step="1" disabled={isSubmitting} {...field} />
+                    <Input
+                      type="number"
+                      min="1"
+                      max="365"
+                      step="1"
+                      disabled={isSubmitting}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

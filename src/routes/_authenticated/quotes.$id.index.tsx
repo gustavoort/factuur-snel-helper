@@ -1,14 +1,6 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import {
-  Copy,
-  Download,
-  FileCheck2,
-  Mail,
-  MessageCircle,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { Copy, Download, FileCheck2, Mail, MessageCircle, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -140,7 +132,7 @@ function QuoteDetailPage() {
     <>
       <PageHeader
         title={quote.quote_number ? `Offerte ${quote.quote_number}` : "Offerte"}
-        description={quote.client_company || quote.client_name || undefined}
+        description={quote.client_company || quote.client_name || ""}
         actions={
           <>
             <Button asChild variant="outline" size="sm">
@@ -148,12 +140,7 @@ function QuoteDetailPage() {
                 <Pencil /> Bewerken
               </Link>
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => duplicate.mutate()}
-            >
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => duplicate.mutate()}>
               <Copy /> Dupliceren
             </Button>
             <Button variant="outline" size="sm" disabled={busy} onClick={() => pdf.mutate()}>
@@ -181,10 +168,7 @@ function QuoteDetailPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel disabled={convert.isPending}>Annuleren</AlertDialogCancel>
-                  <AlertDialogAction
-                    disabled={convert.isPending}
-                    onClick={() => convert.mutate()}
-                  >
+                  <AlertDialogAction disabled={convert.isPending} onClick={() => convert.mutate()}>
                     {convert.isPending ? "Bezig…" : "Omzetten"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -249,8 +233,7 @@ function QuoteDetailPage() {
                       <td className="py-2.5 text-right text-foreground">{item.vat_rate}%</td>
                       <td className="py-2.5 text-right font-medium text-foreground">
                         {formatCurrency(
-                          item.total ??
-                            item.quantity * item.unit_price * (1 + item.vat_rate / 100),
+                          item.total ?? item.quantity * item.unit_price * (1 + item.vat_rate / 100),
                         )}
                       </td>
                     </tr>

@@ -71,7 +71,7 @@ function EditQuotePage() {
     <>
       <PageHeader
         title="Offerte bewerken"
-        description={quote.quote_number ? `Offerte ${quote.quote_number}` : undefined}
+        description={quote.quote_number ? `Offerte ${quote.quote_number}` : ""}
       />
       <QuoteForm
         defaultValues={defaultValues}
