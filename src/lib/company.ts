@@ -65,8 +65,27 @@ export async function getCompany(): Promise<CompanyProfile> {
   return normalizeCompany(data);
 }
 
-export async function updateCompany(payload: CompanyPayload): Promise<CompanyProfile> {
-  const { data } = await api.put<unknown>("/company", payload);
+/** Strips logo_base64 so saving text fields never wipes the uploaded logo. */
+export function toCompanyUpdatePayload(values: Partial<CompanyProfile>): CompanyPayload {
+  return {
+    company_name: text(values.company_name),
+    owner_name: text(values.owner_name),
+    address: text(values.address),
+    postal_code: text(values.postal_code),
+    city: text(values.city),
+    country: text(values.country, "Nederland"),
+    phone: text(values.phone),
+    email: text(values.email),
+    kvk_number: text(values.kvk_number),
+    btw_number: text(values.btw_number),
+    iban: text(values.iban),
+    payment_terms: Math.round(num(values.payment_terms) ?? 30),
+    default_vat_rate: num(values.default_vat_rate) ?? 21,
+  };
+}
+
+export async function updateCompany(payload: Partial<CompanyProfile>): Promise<CompanyProfile> {
+  const { data } = await api.put<unknown>("/company", toCompanyUpdatePayload(payload));
   return normalizeCompany(data);
 }
 

@@ -57,9 +57,11 @@ export const emptyDocumentValues: DocumentFormValues = {
   status: "",
 };
 
-const buildSchema = (t: Translate) =>
+const buildSchema = (t: Translate, requireClient: boolean) =>
   z.object({
-    client_id: z.string().trim().min(1, t("validation.clientRequired")),
+    client_id: requireClient
+      ? z.string().trim().min(1, t("validation.clientRequired"))
+      : z.string(),
     items: z
       .array(
         z.object({
@@ -103,7 +105,7 @@ export function DocumentForm({
 }) {
   const { t } = useTranslation();
   const form = useForm<DocumentFormValues>({
-    resolver: zodResolver(buildSchema(t as Translate)),
+    resolver: zodResolver(buildSchema(t as Translate, !lockedClientLabel)),
     defaultValues,
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });

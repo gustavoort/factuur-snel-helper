@@ -2,7 +2,12 @@ import { queryOptions } from "@tanstack/react-query";
 import api from "@/lib/api";
 import i18n from "@/i18n";
 import { asRecord, collection, downloadBlob, num, text } from "@/lib/normalize";
-import { normalizeQuoteItem, type QuoteItem, type QuoteItemPayload } from "@/lib/quotes";
+import {
+  normalizeQuoteItem,
+  toItemPayload,
+  type QuoteItem,
+  type QuoteItemPayload,
+} from "@/lib/quotes";
 
 export type InvoiceItemPayload = QuoteItemPayload;
 export type InvoiceItem = QuoteItem;
@@ -92,13 +97,35 @@ export async function getInvoice(id: string): Promise<Invoice> {
   return unwrapInvoice(data);
 }
 
+/** Serializes only the fields accepted by the InvoiceCreate schema. */
+export function toInvoiceCreatePayload(values: InvoiceCreatePayload) {
+  return {
+    client_id: values.client_id,
+    items: values.items.map(toItemPayload),
+    notes: values.notes ?? "",
+    ...(values.from_quote_id ? { from_quote_id: values.from_quote_id } : {}),
+  };
+}
+
+/** Serializes only the fields accepted by the InvoiceUpdate schema (items, notes, status). */
+export function toInvoiceUpdatePayload(values: InvoiceUpdatePayload) {
+  return {
+    items: values.items.map(toItemPayload),
+    notes: values.notes ?? "",
+    ...(values.status ? { status: values.status } : {}),
+  };
+}
+
 export async function createInvoice(payload: InvoiceCreatePayload): Promise<Invoice> {
-  const { data } = await api.post<unknown>("/invoices", payload);
+  const { data } = await api.post<unknown>("/invoices", toInvoiceCreatePayload(payload));
   return unwrapInvoice(data);
 }
 
 export async function updateInvoice(id: string, payload: InvoiceUpdatePayload): Promise<Invoice> {
-  const { data } = await api.put<unknown>(`/invoices/${encodeURIComponent(id)}`, payload);
+  const { data } = await api.put<unknown>(
+    `/invoices/${encodeURIComponent(id)}`,
+    toInvoiceUpdatePayload(payload),
+  );
   return unwrapInvoice(data);
 }
 

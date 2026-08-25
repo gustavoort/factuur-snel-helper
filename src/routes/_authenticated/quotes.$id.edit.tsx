@@ -36,6 +36,7 @@ function EditQuotePage() {
       toast.success(t("quotes.updated"));
       await queryClient.invalidateQueries({ queryKey: ["quotes"] });
       await queryClient.invalidateQueries({ queryKey: ["quote", id] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       void navigate({ to: "/quotes/$id", params: { id } });
     },
     onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.updateFailed"))),
