@@ -50,6 +50,22 @@ export interface Quote {
 
 export const VAT_RATES = [0, 9, 21];
 
+/** Coerces a line item to the exact QuoteItem schema (description, quantity, unit_price, vat_rate). */
+export function toItemPayload(item: QuoteItemPayload): QuoteItemPayload {
+  return {
+    description: String(item.description ?? ""),
+    quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+    unit_price: Number(item.unit_price) || 0,
+    vat_rate: Number(item.vat_rate) || 0,
+  };
+}
+
+/** Backend requires 1..365. */
+export function clampValidity(days: unknown): number {
+  const value = Math.round(Number(days) || 30);
+  return Math.min(365, Math.max(1, value));
+}
+
 export function normalizeQuoteItem(value: unknown): QuoteItem {
   const row = asRecord(value) ?? {};
   return {
@@ -111,13 +127,36 @@ export async function getQuote(id: string): Promise<Quote> {
   return unwrapQuote(data);
 }
 
+/** Serializes only the fields accepted by the QuoteCreate schema. */
+export function toQuoteCreatePayload(values: QuoteCreatePayload): QuoteCreatePayload {
+  return {
+    client_id: values.client_id,
+    items: values.items.map(toItemPayload),
+    notes: values.notes ?? "",
+    validity_days: clampValidity(values.validity_days),
+  };
+}
+
+/** Serializes only the fields accepted by the QuoteUpdate schema (no client_id). */
+export function toQuoteUpdatePayload(values: QuoteUpdatePayload): QuoteUpdatePayload {
+  return {
+    items: values.items.map(toItemPayload),
+    notes: values.notes ?? "",
+    validity_days: clampValidity(values.validity_days),
+    ...(values.status ? { status: values.status } : {}),
+  };
+}
+
 export async function createQuote(payload: QuoteCreatePayload): Promise<Quote> {
-  const { data } = await api.post<unknown>("/quotes", payload);
+  const { data } = await api.post<unknown>("/quotes", toQuoteCreatePayload(payload));
   return unwrapQuote(data);
 }
 
 export async function updateQuote(id: string, payload: QuoteUpdatePayload): Promise<Quote> {
-  const { data } = await api.put<unknown>(`/quotes/${encodeURIComponent(id)}`, payload);
+  const { data } = await api.put<unknown>(
+    `/quotes/${encodeURIComponent(id)}`,
+    toQuoteUpdatePayload(payload),
+  );
   return unwrapQuote(data);
 }
 
