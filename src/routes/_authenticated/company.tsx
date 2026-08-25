@@ -133,7 +133,7 @@ function CompanyEditor({ profile }: { profile: CompanyProfile }) {
     mutationFn: (file: File) => uploadCompanyLogo(file),
     onSuccess: async () => {
       toast.success(t("company.logoUploaded"));
-      await queryClient.invalidateQueries({ queryKey: ["company"] });
+      await queryClient.refetchQueries({ queryKey: ["company"] });
     },
     onError: (err) => toast.error(getApiErrorMessage(err, t("company.logoFailed"))),
   });

@@ -38,6 +38,7 @@ function EditInvoicePage() {
       toast.success(t("invoices.updated"));
       await queryClient.invalidateQueries({ queryKey: ["invoices"] });
       await queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       void navigate({ to: "/invoices/$id", params: { id } });
     },
     onError: (err) => toast.error(getApiErrorMessage(err, t("invoices.updateFailed"))),
