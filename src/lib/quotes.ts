@@ -160,6 +160,14 @@ export async function updateQuote(id: string, payload: QuoteUpdatePayload): Prom
   return unwrapQuote(data);
 }
 
+export const QUOTE_STATUSES = ["draft", "sent", "accepted", "rejected"] as const;
+
+/** Sends only `status` — QuoteUpdate accepts partial payloads and never client_id. */
+export async function setQuoteStatus(id: string, status: string): Promise<Quote> {
+  const { data } = await api.put<unknown>(`/quotes/${encodeURIComponent(id)}`, { status });
+  return unwrapQuote(data);
+}
+
 export async function deleteQuote(id: string) {
   await api.delete(`/quotes/${encodeURIComponent(id)}`);
 }

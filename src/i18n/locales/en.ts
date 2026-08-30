@@ -118,6 +118,9 @@ const en = {
     },
   },
   dashboard: {
+    quotes: "Quotes",
+    currentPlan: "Current plan",
+    upgrade: "Upgrade",
     title: "Dashboard",
     description: "Your financial overview at a glance.",
     revenue: "Revenue",
@@ -175,6 +178,9 @@ const en = {
     },
   },
   quotes: {
+    changeStatus: "Change status",
+    statusUpdated: "Quote status updated",
+    statusUpdateFailed: "Could not update the status.",
     label: "Quote",
     title: "Quotes",
     description: "Create, send and track your quotes.",
@@ -227,6 +233,9 @@ const en = {
     pdfName: "quote",
   },
   invoices: {
+    changeStatus: "Change status",
+    statusUpdated: "Invoice status updated",
+    statusUpdateFailed: "Could not update the status.",
     label: "Invoice",
     title: "Invoices",
     description: "Create, send and track your invoices.",
@@ -281,6 +290,9 @@ const en = {
     pdfName: "invoice",
   },
   company: {
+    logoRemove: "Remove logo",
+    logoRemoved: "Logo removed",
+    logoRemoveFailed: "Could not remove the logo.",
     title: "Company details",
     description: "Manage your company details, logo and invoicing terms.",
     saved: "Company details updated successfully",
@@ -332,6 +344,7 @@ const en = {
     status: "Status",
   },
   payment: {
+    pollingStopped: "We could not confirm the payment yet. Please check again later.",
     title: "Payment",
     description: "We're checking the status of your payment.",
     checking: "Checking payment…",

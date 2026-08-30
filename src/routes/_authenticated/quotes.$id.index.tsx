@@ -22,9 +22,12 @@ import {
   getQuoteWhatsapp,
   quoteQueryOptions,
   sendQuoteEmail,
+  setQuoteStatus,
+  QUOTE_STATUSES,
 } from "@/lib/quotes";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { StatusSelect } from "@/components/StatusSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -103,6 +106,15 @@ function QuoteDetailPage() {
     onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.convertFailed"))),
   });
 
+  const changeStatus = useMutation({
+    mutationFn: (status: string) => setQuoteStatus(id, status),
+    onSuccess: async () => {
+      toast.success(t("quotes.statusUpdated"));
+      await invalidate();
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.statusUpdateFailed"))),
+  });
+
   const remove = useMutation({
     mutationFn: () => deleteQuote(id),
     onSuccess: async () => {
@@ -130,6 +142,7 @@ function QuoteDetailPage() {
     whatsapp.isPending ||
     duplicate.isPending ||
     convert.isPending ||
+    changeStatus.isPending ||
     remove.isPending;
 
   return (
@@ -225,6 +238,13 @@ function QuoteDetailPage() {
               <div className="mt-1">
                 <StatusBadge status={data.status} />
               </div>
+              <StatusSelect
+                value={data.status}
+                statuses={QUOTE_STATUSES}
+                disabled={busy}
+                label={t("quotes.changeStatus")}
+                onChange={(status) => changeStatus.mutate(status)}
+              />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{t("quotes.number")}</p>

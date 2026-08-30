@@ -22,9 +22,12 @@ import {
   invoiceQueryOptions,
   markInvoicePaid,
   sendInvoiceEmail,
+  setInvoiceStatus,
+  INVOICE_STATUSES,
 } from "@/lib/invoices";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { StatusSelect } from "@/components/StatusSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,6 +55,7 @@ function InvoiceDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [confirm, setConfirm] = useState<"delete" | "paid" | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState("");
 
   const { data, isPending, isError, error } = useQuery({
     ...invoiceQueryOptions(id),
@@ -87,10 +91,20 @@ function InvoiceDetailPage() {
   const paymentLink = useMutation({
     mutationFn: () => createInvoicePaymentLink(id),
     onSuccess: (url) => {
+      setPaymentUrl(url);
       window.open(url, "_blank", "noopener,noreferrer");
       toast.success(t("invoices.paymentLinkCreated"));
     },
     onError: (err) => toast.error(getApiErrorMessage(err, t("invoices.paymentLinkFailed"))),
+  });
+
+  const changeStatus = useMutation({
+    mutationFn: (status: string) => setInvoiceStatus(id, status),
+    onSuccess: async () => {
+      toast.success(t("invoices.statusUpdated"));
+      await invalidate();
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, t("invoices.statusUpdateFailed"))),
   });
 
   const markPaid = useMutation({
@@ -130,6 +144,7 @@ function InvoiceDetailPage() {
     whatsapp.isPending ||
     paymentLink.isPending ||
     markPaid.isPending ||
+    changeStatus.isPending ||
     remove.isPending;
   const isPaid = data.status.toLowerCase() === "paid";
 
@@ -228,6 +243,13 @@ function InvoiceDetailPage() {
               <div className="mt-1">
                 <StatusBadge status={data.status} />
               </div>
+              <StatusSelect
+                value={data.status}
+                statuses={INVOICE_STATUSES}
+                disabled={busy}
+                label={t("invoices.changeStatus")}
+                onChange={(status) => changeStatus.mutate(status)}
+              />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{t("invoices.number")}</p>
@@ -260,6 +282,19 @@ function InvoiceDetailPage() {
                   {t("common.viewClient")}
                 </Link>
               </Button>
+            )}
+            {paymentUrl && (
+              <div>
+                <p className="text-xs text-muted-foreground">{t("invoices.paymentLink")}</p>
+                <a
+                  href={paymentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="break-all text-primary underline"
+                >
+                  {paymentUrl}
+                </a>
+              </div>
             )}
             {data.notes && (
               <div>

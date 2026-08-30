@@ -89,6 +89,15 @@ export async function updateCompany(payload: Partial<CompanyProfile>): Promise<C
   return normalizeCompany(data);
 }
 
+/** Explicit logo removal: CompanyProfile.logo_base64 is nullable in the backend schema. */
+export async function removeCompanyLogo(profile: CompanyProfile): Promise<CompanyProfile> {
+  const { data } = await api.put<unknown>("/company", {
+    ...toCompanyUpdatePayload(profile),
+    logo_base64: null,
+  });
+  return normalizeCompany(data);
+}
+
 export async function uploadCompanyLogo(file: File): Promise<void> {
   const body = new FormData();
   body.append("file", file);

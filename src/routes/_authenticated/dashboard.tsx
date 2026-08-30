@@ -12,6 +12,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { formatCurrency } from "@/i18n/format";
 import { collection, asRecord, num, text } from "@/lib/normalize";
 import { pageMeta } from "@/i18n/head";
+import { currentSubscriptionQueryOptions } from "@/lib/subscription";
+import { StatusBadge as PlanBadge } from "@/components/StatusBadge";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: pageMeta("dashboard.title", "dashboard.description") }),
@@ -77,6 +79,11 @@ function RecentList({ rows }: { rows: DashboardRow[] }) {
 
 function DashboardPage() {
   const { t } = useTranslation();
+  const subscription = useQuery({
+    ...currentSubscriptionQueryOptions(),
+    enabled: isApiConfigured,
+    retry: false,
+  });
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => (await api.get<DashboardData>("/dashboard")).data,
@@ -92,6 +99,7 @@ function DashboardPage() {
     { label: t("dashboard.revenue"), value: formatCurrency(data?.paid_revenue) },
     { label: t("dashboard.outstanding"), value: formatCurrency(data?.outstanding) },
     { label: t("dashboard.invoices"), value: String(data?.total_invoices ?? 0) },
+    { label: t("dashboard.quotes"), value: String(data?.total_quotes ?? 0) },
     { label: t("dashboard.clients"), value: String(data?.total_clients ?? 0) },
   ];
 
@@ -133,7 +141,7 @@ function DashboardPage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((s) => (
           <Card key={s.label}>
             <CardHeader className="pb-2">
@@ -151,6 +159,27 @@ function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {subscription.data ? (
+        <Card className="mt-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {t("dashboard.currentPlan")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <p className="text-xl font-semibold capitalize text-foreground">
+              {subscription.data.plan || t("billing.free")}
+            </p>
+            {subscription.data.status ? <PlanBadge status={subscription.data.status} /> : null}
+            {(subscription.data.plan || "free").toLowerCase() === "free" && (
+              <Button asChild size="sm" className="ml-auto">
+                <Link to="/billing">{t("dashboard.upgrade")}</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section>
