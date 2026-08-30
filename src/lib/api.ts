@@ -7,11 +7,20 @@ const rawApiUrl = (import.meta.env["VITE_API_URL"] ?? "").toString().trim();
 /** Normalized backend origin, e.g. https://api.example.com (no trailing slash). */
 export const apiUrl = rawApiUrl.replace(/\/+$/, "");
 
-/** True when a valid absolute backend URL is configured. */
-export const isApiConfigured = /^https?:\/\/[^/]+/i.test(apiUrl);
+const hasAbsoluteApiUrl = /^https?:\/\/[^/]+/i.test(apiUrl);
+
+/**
+ * Base URL used by every request.
+ * - VITE_API_URL set to an absolute http(s) origin -> `<origin>/api`
+ * - VITE_API_URL empty/unset/invalid -> `/api` (same-origin, proxied by vercel.json)
+ */
+export const apiBaseUrl = hasAbsoluteApiUrl ? `${apiUrl}/api` : "/api";
+
+/** Always true: without an explicit backend URL we use the same-origin `/api` proxy. */
+export const isApiConfigured = true;
 
 export const api = axios.create({
-  baseURL: `${apiUrl}/api`,
+  baseURL: apiBaseUrl,
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
