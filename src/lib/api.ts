@@ -2,19 +2,19 @@ import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 import i18n from "@/i18n";
 import { translateApiDetail } from "@/i18n/api-errors";
 
-const rawApiUrl = (import.meta.env["VITE_API_URL"] ?? "").toString().trim();
-
-/** Normalized backend origin, e.g. https://api.example.com (no trailing slash). */
-export const apiUrl = rawApiUrl.replace(/\/+$/, "");
-
-const hasAbsoluteApiUrl = /^https?:\/\/[^/]+/i.test(apiUrl);
+const configuredUrl = import.meta.env.DEV
+  ? import.meta.env["VITE_API_URL"]?.toString().trim()
+  : undefined;
 
 /**
  * Base URL used by every request.
- * - VITE_API_URL set to an absolute http(s) origin -> `<origin>/api`
- * - VITE_API_URL empty/unset/invalid -> `/api` (same-origin, proxied by vercel.json)
+ * Production always uses same-origin `/api`.
+ * Local development can explicitly use an absolute VITE_API_URL.
  */
-export const apiBaseUrl = hasAbsoluteApiUrl ? `${apiUrl}/api` : "/api";
+export const apiBaseUrl =
+  configuredUrl && /^https?:\/\/[^/]+/i.test(configuredUrl)
+    ? `${configuredUrl.replace(/\/+$/, "")}/api`
+    : "/api";
 
 /** Always true: without an explicit backend URL we use the same-origin `/api` proxy. */
 export const isApiConfigured = true;
