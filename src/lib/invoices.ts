@@ -129,6 +129,14 @@ export async function updateInvoice(id: string, payload: InvoiceUpdatePayload): 
   return unwrapInvoice(data);
 }
 
+export const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
+
+/** Sends only `status` — InvoiceUpdate accepts partial payloads and never client_id. */
+export async function setInvoiceStatus(id: string, status: string): Promise<Invoice> {
+  const { data } = await api.put<unknown>(`/invoices/${encodeURIComponent(id)}`, { status });
+  return unwrapInvoice(data);
+}
+
 export async function deleteInvoice(id: string) {
   await api.delete(`/invoices/${encodeURIComponent(id)}`);
 }
