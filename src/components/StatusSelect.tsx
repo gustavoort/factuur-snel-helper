@@ -29,7 +29,7 @@ export function StatusSelect({
   return (
     <Select
       value={statuses.includes(current) ? current : ""}
-      disabled={disabled}
+      disabled={disabled === true}
       onValueChange={(next) => {
         if (next && next !== current) onChange(next);
       }}
