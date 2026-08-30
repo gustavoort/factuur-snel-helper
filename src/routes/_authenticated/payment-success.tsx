@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { getApiErrorMessage, isApiConfigured } from "@/lib/api";
@@ -11,6 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { pageMeta } from "@/i18n/head";
 
 type Search = { session_id?: string | undefined };
+
+const MAX_ATTEMPTS = 10;
+const POLL_INTERVAL_MS = 3000;
 
 export const Route = createFileRoute("/_authenticated/payment-success")({
   validateSearch: (search: Record<string, unknown>): Search => ({
@@ -25,10 +29,29 @@ function PaymentSuccessPage() {
   const { session_id: sessionId } = Route.useSearch();
   const { t } = useTranslation();
 
+  const queryClient = useQueryClient();
+  const [attempts, setAttempts] = useState(0);
+  const settled = useRef(false);
+
   const status = useQuery({
     ...paymentStatusQueryOptions(sessionId ?? ""),
     enabled: isApiConfigured && Boolean(sessionId),
+    refetchInterval: (query) =>
+      query.state.data?.paid || attempts >= MAX_ATTEMPTS ? false : POLL_INTERVAL_MS,
   });
+
+  useEffect(() => {
+    if (status.isFetching) setAttempts((value) => value + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.dataUpdatedAt, status.errorUpdatedAt]);
+
+  useEffect(() => {
+    if (status.data?.paid && !settled.current) {
+      settled.current = true;
+      void queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    }
+  }, [status.data?.paid, queryClient]);
 
   const paid = status.data?.paid === true;
   const failed = status.isError || (status.data && !status.data.paid && status.data.status !== "");
@@ -81,7 +104,13 @@ function PaymentSuccessPage() {
               <Link to="/billing">{t("payment.backToBilling")}</Link>
             </Button>
             {sessionId && !paid && (
-              <Button variant="outline" onClick={() => void status.refetch()}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAttempts(0);
+                  void status.refetch();
+                }}
+              >
                 {t("payment.checkAgain")}
               </Button>
             )}

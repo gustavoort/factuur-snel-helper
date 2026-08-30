@@ -6,11 +6,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Upload } from "lucide-react";
+import { Upload, Trash2 } from "lucide-react";
 import { getApiErrorMessage, isApiConfigured } from "@/lib/api";
 import {
   companyQueryOptions,
   emptyCompany,
+  removeCompanyLogo,
   updateCompany,
   uploadCompanyLogo,
   type CompanyProfile,
@@ -138,6 +139,15 @@ function CompanyEditor({ profile }: { profile: CompanyProfile }) {
     onError: (err) => toast.error(getApiErrorMessage(err, t("company.logoFailed"))),
   });
 
+  const removeLogo = useMutation({
+    mutationFn: () => removeCompanyLogo(profile),
+    onSuccess: async () => {
+      toast.success(t("company.logoRemoved"));
+      await queryClient.refetchQueries({ queryKey: ["company"] });
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, t("company.logoRemoveFailed"))),
+  });
+
   const sections = ["general", "address", "contact", "fiscal"] as const;
 
   return (
@@ -169,6 +179,18 @@ function CompanyEditor({ profile }: { profile: CompanyProfile }) {
               <Upload className="h-4 w-4" />
               {upload.isPending ? t("company.logoUploading") : t("company.logoUpload")}
             </Button>
+            {profile.logo_base64 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="ml-2"
+                disabled={removeLogo.isPending}
+                onClick={() => removeLogo.mutate()}
+              >
+                <Trash2 className="h-4 w-4" />
+                {t("company.logoRemove")}
+              </Button>
+            ) : null}
             <p className="mt-2 text-xs text-muted-foreground">{t("company.logoHint")}</p>
           </div>
           <input
