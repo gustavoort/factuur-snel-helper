@@ -118,6 +118,9 @@ const pt = {
     },
   },
   dashboard: {
+    quotes: "Orçamentos",
+    currentPlan: "Plano atual",
+    upgrade: "Fazer upgrade",
     title: "Painel",
     description: "Seu panorama financeiro em um só lugar.",
     revenue: "Receita",
@@ -176,6 +179,9 @@ const pt = {
     },
   },
   quotes: {
+    changeStatus: "Alterar status",
+    statusUpdated: "Status do orçamento atualizado",
+    statusUpdateFailed: "Não foi possível alterar o status.",
     label: "Orçamento",
     title: "Orçamentos",
     description: "Crie, envie e acompanhe seus orçamentos.",
@@ -229,6 +235,9 @@ const pt = {
     pdfName: "orcamento",
   },
   invoices: {
+    changeStatus: "Alterar status",
+    statusUpdated: "Status da fatura atualizado",
+    statusUpdateFailed: "Não foi possível alterar o status.",
     label: "Fatura",
     title: "Faturas",
     description: "Crie, envie e acompanhe suas faturas.",
@@ -283,6 +292,9 @@ const pt = {
     pdfName: "fatura",
   },
   company: {
+    logoRemove: "Remover logo",
+    logoRemoved: "Logo removido",
+    logoRemoveFailed: "Não foi possível remover o logo.",
     title: "Dados da empresa",
     description: "Gerencie os dados da empresa, o logo e as condições de faturamento.",
     saved: "Dados da empresa atualizados com sucesso",
@@ -334,6 +346,7 @@ const pt = {
     status: "Status",
   },
   payment: {
+    pollingStopped: "Ainda não conseguimos confirmar o pagamento. Verifique novamente mais tarde.",
     title: "Pagamento",
     description: "Estamos verificando o status do seu pagamento.",
     checking: "Verificando pagamento…",

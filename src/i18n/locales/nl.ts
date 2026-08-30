@@ -119,6 +119,9 @@ const nl = {
     },
   },
   dashboard: {
+    quotes: "Offertes",
+    currentPlan: "Huidig abonnement",
+    upgrade: "Upgraden",
     title: "Dashboard",
     description: "Je financiële overzicht in één oogopslag.",
     revenue: "Omzet",
@@ -177,6 +180,9 @@ const nl = {
     },
   },
   quotes: {
+    changeStatus: "Status wijzigen",
+    statusUpdated: "Status van de offerte bijgewerkt",
+    statusUpdateFailed: "Status wijzigen is mislukt.",
     label: "Offerte",
     title: "Offertes",
     description: "Beheer en verstuur uw offertes.",
@@ -230,6 +236,9 @@ const nl = {
     pdfName: "offerte",
   },
   invoices: {
+    changeStatus: "Status wijzigen",
+    statusUpdated: "Status van de factuur bijgewerkt",
+    statusUpdateFailed: "Status wijzigen is mislukt.",
     label: "Factuur",
     title: "Facturen",
     description: "Beheer, verstuur en volg uw facturen.",
@@ -284,6 +293,9 @@ const nl = {
     pdfName: "factuur",
   },
   company: {
+    logoRemove: "Logo verwijderen",
+    logoRemoved: "Logo verwijderd",
+    logoRemoveFailed: "Logo verwijderen is mislukt.",
     title: "Bedrijfsgegevens",
     description: "Beheer je bedrijfsgegevens, logo en factuurvoorwaarden.",
     saved: "Bedrijfsgegevens succesvol bijgewerkt",
@@ -335,6 +347,7 @@ const nl = {
     status: "Status",
   },
   payment: {
+    pollingStopped: "We konden de betaling nog niet bevestigen. Controleer het later opnieuw.",
     title: "Betaling",
     description: "We controleren de status van je betaling.",
     checking: "Betaling controleren…",
