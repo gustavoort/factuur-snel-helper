@@ -286,7 +286,7 @@ export function LandingPage() {
           <div className="mx-auto grid w-full max-w-7xl items-center gap-14 lg:grid-cols-[0.88fr_1.12fr] lg:gap-12 xl:gap-20">
             <div className="relative z-10">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground shadow-sm"><HardHat className="size-4 text-primary" /> Voor vakmensen die liever werken dan administreren.</span>
-              <h1 className="mt-7 max-w-3xl text-5xl font-semibold leading-[0.98] text-foreground sm:text-6xl lg:text-7xl xl:text-8xl">Van klus naar <span className="relative inline-block text-primary">betaald<span className="absolute -bottom-1 left-0 h-2 w-full rounded-full bg-landing-lime -z-10" /></span>.<br />Zonder administratiegedoe.</h1>
+              <h1 className="mt-7 max-w-3xl text-[2.65rem] font-semibold leading-[0.98] text-foreground sm:text-6xl lg:text-7xl xl:text-8xl">Van klus naar <span className="relative inline-block text-primary">betaald<span className="absolute -bottom-1 left-0 -z-10 h-2 w-full rounded-full bg-landing-lime" /></span>.<br />Zonder <span className="break-words">administratiegedoe.</span></h1>
               <p className="mt-7 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">Leg uren, materialen, kosten en meerwerk vast terwijl je werkt. {PRODUCT_NAME} helpt je niets te vergeten en zorgt dat uitgevoerd werk sneller op de factuur komt.</p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-13 rounded-xl px-6 text-base shadow-landing"><Link to="/register">Probeer gratis <ArrowRight /></Link></Button>
