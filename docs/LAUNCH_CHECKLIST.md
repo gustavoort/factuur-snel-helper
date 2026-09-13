@@ -9,16 +9,20 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [x] Repositório oficial `gustavoort/factuur-snel-helper` acessível e com deploy Git → Vercel ativo.
 - [x] Landing pública responde HTTP 200 em produção.
 - [x] Build Vercel continua `READY` após substituir a configuração Vite/Lovable por configuração nativa TanStack/Vite/Nitro.
+- [x] Build Vercel continua `READY` após remover `@lovable.dev/vite-tanstack-config` do `package.json`.
 - [x] Rotas públicas existentes: `/`, `/login`, `/register`, `/forgot-password`, `/reset-password`.
 - [x] Estrutura de rotas privadas protegida por `ProtectedRoute`.
 - [x] Cliente HTTP same-origin `/api` com cookies e refresh automático de sessão.
 - [x] Módulos frontend existentes para clientes, orçamentos, faturas, empresa, billing e dashboard.
 - [x] Traduções NL/EN/PT presentes no projeto.
 - [x] Responsividade básica do shell interno: sidebar desktop + menu móvel.
+- [x] Código fonte do backend atual consolidado em `backend/` dentro do repositório oficial.
+- [x] Requisitos Python, Dockerfile e patch de produção do backend consolidados no repositório oficial.
 
 ## CORRIGIDO
 
 - [x] Dependência de execução do `vite.config.ts` em `@lovable.dev/vite-tanstack-config` removida.
+- [x] Dependência não utilizada `@lovable.dev/vite-tanstack-config` removida do `package.json`.
 - [x] Reporting de erros específico do Lovable removido do root da aplicação.
 - [x] Arquivo de runtime `src/lib/lovable-error-reporting.ts` removido.
 - [x] Metadados e planos `.lovable/` removidos.
@@ -31,6 +35,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [x] `vite.config.ts` agora usa configuração nativa Vite + TanStack Start + Nitro + React + Tailwind + tsconfig paths.
 - [x] Documentação técnica real criada em `docs/CURRENT_STATE.md`.
 - [x] Repositório helper definido como única fonte oficial para novas alterações.
+- [x] Backend legado necessário foi copiado para `backend/` no repositório oficial sem alterar ainda o serviço Railway em produção.
 
 ## REMOVIDO
 
@@ -42,7 +47,9 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 
 ## PENDENTE — BLOQUEADORES DE LANÇAMENTO
 
-- [ ] Remover a dependência agora não utilizada `@lovable.dev/vite-tanstack-config` de `package.json` e sincronizar `bun.lock` em uma instalação limpa.
+- [ ] Regenerar/sincronizar `bun.lock` numa instalação limpa para retirar referências antigas do pacote Lovable.
+- [ ] Validar `backend/server.py` + `backend/patch_server.py` em build/runtime isolado antes de apontar o Railway para este repositório.
+- [ ] Migrar a fonte do serviço Railway de `gustavoort/FactuurSnel` para `gustavoort/factuur-snel-helper`, mantendo root `/backend`, somente depois da validação acima.
 - [ ] Eliminar todos os placeholders públicos, especialmente `[NOME DO PRODUTO]` e `contact@example.com`.
 - [ ] Definir nome público final antes de domínio/SEO. O nome de projeto interno não deve ser confundido com validação de marca comercial.
 - [ ] Garantir que a landing só anuncie como disponível aquilo que existe realmente. Werkregistratie, Meerwerk/Money Recovery e Job Memory precisam ser implementados ou claramente marcados como futuros.
@@ -54,7 +61,6 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [ ] Testar CRUD, PDF, email, WhatsApp, pagamento e marcação de faturas.
 - [ ] Testar billing/checkout e retorno de pagamento.
 - [ ] Confirmar contratos e autorização do backend para todos os endpoints usados pelo frontend.
-- [ ] Consolidar o código backend necessário no repositório oficial antes de descontinuar o repositório legado.
 - [ ] Executar instalação limpa, lint e build fora do ambiente Lovable.
 - [ ] Testar fluxos reais em desktop e mobile, incluindo URLs diretas, refresh, sessão expirada, API offline, erros 4xx/5xx e estados vazios.
 - [ ] Revisar acessibilidade básica: teclado, labels, foco, contraste, headings e diálogos.
@@ -68,10 +74,19 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 | Teste | Resultado |
 | --- | --- |
 | Deploy após config Vite nativa | PASS — Vercel READY |
+| Deploy após remoção da dependência Lovable do `package.json` | PASS — Vercel READY |
 | `GET /` | PASS — HTTP 200 |
 | `GET /login` | PASS — HTTP 200 |
 | Verificação visual HTML da landing | FAIL PARCIAL — ainda existem placeholders e recursos futuros apresentados no marketing |
+| Backend consolidado no repositório oficial | PASS de versionamento — runtime no novo repositório ainda não validado |
+
+## Infraestrutura confirmada
+
+- Vercel projeto `factuur-snel-helper` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
+- O serviço Railway de produção ainda está ligado a `gustavoort/FactuurSnel`, branch `main`, root `/backend`.
+- O Railway usa builder RAILPACK no serviço atual; por isso a presença do Dockerfile no repositório não prova que ele será usado nesse serviço.
+- A troca da fonte Railway será feita apenas após validar o backend consolidado, para evitar interrupção do SaaS atual.
 
 ## Regra de conclusão
 
-O projeto não será marcado como pronto enquanto houver qualquer bloqueador acima sem validação ou enquanto a aplicação depender do repositório legado para continuar operando sem uma migração documentada.
+O projeto não será marcado como pronto enquanto houver qualquer bloqueador acima sem validação ou enquanto a aplicação depender operacionalmente do repositório legado.
