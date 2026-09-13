@@ -1,0 +1,77 @@
+# FactuurSnel — Checklist de lançamento
+
+Última atualização: 2026-09-13
+
+Este checklist é atualizado contra o código e deploy reais. Um item só recebe `OK` quando foi verificado; build isolado não é suficiente para aprovar um fluxo funcional.
+
+## FUNCIONANDO
+
+- [x] Repositório oficial `gustavoort/factuur-snel-helper` acessível e com deploy Git → Vercel ativo.
+- [x] Landing pública responde HTTP 200 em produção.
+- [x] Build Vercel continua `READY` após substituir a configuração Vite/Lovable por configuração nativa TanStack/Vite/Nitro.
+- [x] Rotas públicas existentes: `/`, `/login`, `/register`, `/forgot-password`, `/reset-password`.
+- [x] Estrutura de rotas privadas protegida por `ProtectedRoute`.
+- [x] Cliente HTTP same-origin `/api` com cookies e refresh automático de sessão.
+- [x] Módulos frontend existentes para clientes, orçamentos, faturas, empresa, billing e dashboard.
+- [x] Traduções NL/EN/PT presentes no projeto.
+- [x] Responsividade básica do shell interno: sidebar desktop + menu móvel.
+
+## CORRIGIDO
+
+- [x] Dependência de execução do `vite.config.ts` em `@lovable.dev/vite-tanstack-config` removida.
+- [x] Reporting de erros específico do Lovable removido do root da aplicação.
+- [x] Arquivo de runtime `src/lib/lovable-error-reporting.ts` removido.
+- [x] Metadados e planos `.lovable/` removidos.
+- [x] Instruções `AGENTS.md` específicas do Lovable removidas.
+- [x] Exceções Lovable do `bunfig.toml` removidas.
+- [x] README antigo orientado ao Lovable substituído por documentação do projeto.
+
+## ALTERADO
+
+- [x] `vite.config.ts` agora usa configuração nativa Vite + TanStack Start + Nitro + React + Tailwind + tsconfig paths.
+- [x] Documentação técnica real criada em `docs/CURRENT_STATE.md`.
+- [x] Repositório helper definido como única fonte oficial para novas alterações.
+
+## REMOVIDO
+
+- [x] `.lovable/project.json`.
+- [x] Planos históricos dentro de `.lovable/plan/`.
+- [x] `AGENTS.md` com sincronização Lovable.
+- [x] `src/lib/lovable-error-reporting.ts`.
+- [x] chamada de `reportLovableError` no root.
+
+## PENDENTE — BLOQUEADORES DE LANÇAMENTO
+
+- [ ] Remover a dependência agora não utilizada `@lovable.dev/vite-tanstack-config` de `package.json` e sincronizar `bun.lock` em uma instalação limpa.
+- [ ] Eliminar todos os placeholders públicos, especialmente `[NOME DO PRODUTO]` e `contact@example.com`.
+- [ ] Definir nome público final antes de domínio/SEO. O nome de projeto interno não deve ser confundido com validação de marca comercial.
+- [ ] Garantir que a landing só anuncie como disponível aquilo que existe realmente. Werkregistratie, Meerwerk/Money Recovery e Job Memory precisam ser implementados ou claramente marcados como futuros.
+- [ ] Criar páginas/links reais de privacidade e termos antes do lançamento público.
+- [ ] Finalizar sitemap, robots, Open Graph, canonical e metadata de produção após nome/domínio final.
+- [ ] Auditar e testar cadastro, login, logout, refresh de sessão e recuperação/redefinição de palavra-passe contra o backend real.
+- [ ] Testar CRUD real de clientes.
+- [ ] Testar CRUD, PDF, email, WhatsApp e conversão de orçamentos.
+- [ ] Testar CRUD, PDF, email, WhatsApp, pagamento e marcação de faturas.
+- [ ] Testar billing/checkout e retorno de pagamento.
+- [ ] Confirmar contratos e autorização do backend para todos os endpoints usados pelo frontend.
+- [ ] Consolidar o código backend necessário no repositório oficial antes de descontinuar o repositório legado.
+- [ ] Executar instalação limpa, lint e build fora do ambiente Lovable.
+- [ ] Testar fluxos reais em desktop e mobile, incluindo URLs diretas, refresh, sessão expirada, API offline, erros 4xx/5xx e estados vazios.
+- [ ] Revisar acessibilidade básica: teclado, labels, foco, contraste, headings e diálogos.
+- [ ] Revisar dependências e vulnerabilidades.
+- [ ] Remover logs/TODOs/mocks/placeholders/dados de exemplo indevidos após confirmação de uso.
+- [ ] Configurar domínio somente após todos os itens de código estarem aprovados.
+- [ ] Configurar Resend/domínio de envio/SPF/DKIM e realizar teste real somente na etapa final.
+
+## Testes de produção já executados
+
+| Teste | Resultado |
+| --- | --- |
+| Deploy após config Vite nativa | PASS — Vercel READY |
+| `GET /` | PASS — HTTP 200 |
+| `GET /login` | PASS — HTTP 200 |
+| Verificação visual HTML da landing | FAIL PARCIAL — ainda existem placeholders e recursos futuros apresentados no marketing |
+
+## Regra de conclusão
+
+O projeto não será marcado como pronto enquanto houver qualquer bloqueador acima sem validação ou enquanto a aplicação depender do repositório legado para continuar operando sem uma migração documentada.
