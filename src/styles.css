@@ -59,6 +59,18 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-landing-panel: var(--landing-panel);
+  --color-landing-lime: var(--landing-lime);
+  --color-landing-lime-soft: var(--landing-lime-soft);
+  --color-landing-ink: var(--landing-ink);
+  --color-landing-dark: var(--landing-dark);
+  --color-landing-dark-card: var(--landing-dark-card);
+  --color-landing-dark-foreground: var(--landing-dark-foreground);
+  --color-landing-dark-muted: var(--landing-dark-muted);
+  --color-landing-dark-border: var(--landing-dark-border);
+  --shadow-landing: var(--landing-shadow);
+  --shadow-dark: var(--landing-dark-shadow);
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
@@ -173,4 +185,53 @@
   --sidebar-accent-foreground: oklch(0.409 0.048 165);
   --sidebar-border: oklch(0.897 0.007 85);
   --sidebar-ring: oklch(0.409 0.048 165);
+  --landing-panel: oklch(0.965 0.006 110);
+  --landing-lime: oklch(0.9 0.18 120);
+  --landing-lime-soft: oklch(0.965 0.065 120);
+  --landing-ink: oklch(0.2 0.025 160);
+  --landing-dark: oklch(0.21 0.025 160);
+  --landing-dark-card: oklch(0.26 0.026 160);
+  --landing-dark-foreground: oklch(0.975 0.006 110);
+  --landing-dark-muted: oklch(0.76 0.014 160);
+  --landing-dark-border: oklch(1 0 0 / 12%);
+  --landing-shadow: 0 24px 70px -28px oklch(0.21 0.025 160 / 28%);
+  --landing-dark-shadow: 0 28px 80px -30px oklch(0 0 0 / 55%);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+
+.landing-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-float {
+  animation: landing-float 6s ease-in-out infinite;
+}
+
+.landing-float-two {
+  animation-delay: -2s;
+}
+
+.landing-float-three {
+  animation-delay: -4s;
+}
+
+@keyframes landing-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .landing-reveal { opacity: 1; transform: none; transition: none; }
+  .landing-float { animation: none; }
 }
