@@ -111,7 +111,7 @@ function Reveal({ children, className }: { children: ReactNode; className?: stri
 function SectionIntro({ eyebrow, title, copy, dark = false }: { eyebrow?: string; title: ReactNode; copy?: string; dark?: boolean }) {
   return (
     <div className="max-w-3xl">
-      {eyebrow && <p className={cn("mb-4 text-xs font-bold uppercase tracking-[0.16em]", dark ? "text-landing-lime" : "text-primary")}>{eyebrow}</p>}
+      {eyebrow && <p className={cn("mb-4 text-xs font-bold uppercase", dark ? "text-landing-lime" : "text-primary")}>{eyebrow}</p>}
       <h2 className={cn("text-3xl font-semibold leading-[1.08] sm:text-5xl lg:text-6xl", dark ? "text-landing-dark-foreground" : "text-foreground")}>{title}</h2>
       {copy && <p className={cn("mt-6 max-w-2xl text-base leading-7 sm:text-lg", dark ? "text-landing-dark-muted" : "text-muted-foreground")}>{copy}</p>}
     </div>
