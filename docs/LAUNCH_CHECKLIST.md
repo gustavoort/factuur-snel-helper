@@ -57,7 +57,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 ## PENDENTE — BLOQUEADORES DE LANÇAMENTO
 
 - [ ] Regenerar/sincronizar `bun.lock` numa instalação limpa para retirar referências antigas do pacote Lovable.
-- [ ] Validar `backend/server.py` + `backend/patch_server.py` em build/runtime isolado antes de apontar o Railway para este repositório.
+- [ ] Validar `backend/server.py` + `backend/patch_server.py` em build/runtime isolado. Foi adicionado `backend/railway.json` para forçar o Dockerfile, mas a compilação e o arranque ainda não foram validados.
 - [x] Fonte do serviço Railway alterada para `gustavoort/factuur-snel-helper`, branch `main`, root `/backend` (configuração verificada; implantação do novo código ainda não comprovada).
 - [ ] Confirmar novo build e deploy Railway a partir do commit de `factuur-snel-helper`. O deploy FAILED mais recente consultado foi construído do repositório legado, portanto não valida o backend consolidado.
 - [ ] Auditar e testar cadastro, login, logout, refresh de sessão e recuperação/redefinição de palavra-passe contra o backend real.
@@ -93,7 +93,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 
 - Vercel projeto `factuur-snel-helper` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
 - O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes.
-- O Railway usa builder RAILPACK no serviço atual; por isso a presença do Dockerfile no repositório não prova que ele será usado nesse serviço.
+- O serviço Railway ainda reporta builder RAILPACK na configuração consultada. O repositório agora inclui `backend/railway.json` com builder DOCKERFILE; confirmar nos logs do próximo build se essa configuração foi aplicada.
 - O código do backend está no repositório oficial. A nova origem está configurada, mas é necessário comprovar o primeiro deploy do código novo e seus fluxos reais.
 
 ## Regra de conclusão
