@@ -11,7 +11,8 @@ Main components:
 - `server.py` — base FastAPI application and API contracts
 - `patch_server.py` — deterministic production patch for real transactional email and recurring Stripe billing/webhooks
 - `requirements.txt` — Python dependencies
-- `Dockerfile` — reference container build
+- `Dockerfile` — production container build, including WeasyPrint system libraries and deterministic patches
+- `railway.json` — instructs Railway to use the Dockerfile and start Uvicorn on the platform port
 - `.env.example` — required variable names only
 
 ## Required environment variable names
@@ -36,8 +37,8 @@ Never commit real secret values.
 
 The current production behavior originated from the legacy backend build where `patch_server.py` is applied before startup. The patch replaces mocked email flows with Resend calls and upgrades Stripe billing to recurring subscriptions plus webhook processing.
 
-Before changing Railway to use this repository, validate that the build applies `patch_server.py` and that the resulting service starts successfully with the existing environment.
+The existing Railway service is configured to source this repository at `/backend`. Its previous RAILPACK setting could skip the Dockerfile and therefore the production patch. `railway.json` now explicitly selects the Dockerfile; verify the new deployment build logs show Dockerfile execution and that the service starts successfully. The change is not proof of a successful deployment.
 
 ## Railway migration rule
 
-The existing production backend must remain untouched until this consolidated backend has been validated. After validation, Railway should use this repository, branch `main`, root `/backend`. Do not create a second permanent backend codebase.
+Keep the existing Railway service, its environment variables and domain. Its Git source is already `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`. Do not create a second permanent backend codebase. A fresh deployment and end-to-end validation are still required.
