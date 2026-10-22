@@ -1,6 +1,6 @@
 # FactuurSnel — Checklist de lançamento
 
-Última atualização: 2026-09-14
+Última atualização: 2026-10-22
 
 Este checklist é atualizado contra o código e deploy reais. Um item só recebe `OK` quando foi verificado; build isolado não é suficiente para aprovar um fluxo funcional.
 
@@ -58,8 +58,8 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 
 - [ ] Regenerar/sincronizar `bun.lock` numa instalação limpa para retirar referências antigas do pacote Lovable.
 - [ ] Validar `backend/server.py` + `backend/patch_server.py` em build/runtime isolado antes de apontar o Railway para este repositório.
-- [ ] Migrar a fonte do serviço Railway de `gustavoort/FactuurSnel` para `gustavoort/factuur-snel-helper`, mantendo root `/backend`.
-- [ ] A migração Railway está bloqueada atualmente por dois limites externos: o Railway Agent atingiu o limite de uso e a conta Railway recusou criar serviço temporário de validação por limite de recursos do plano Free. Nenhuma alteração foi feita no serviço atual para evitar indisponibilidade.
+- [x] Fonte do serviço Railway alterada para `gustavoort/factuur-snel-helper`, branch `main`, root `/backend` (configuração verificada; implantação do novo código ainda não comprovada).
+- [ ] Confirmar novo build e deploy Railway a partir do commit de `factuur-snel-helper`. O deploy FAILED mais recente consultado foi construído do repositório legado, portanto não valida o backend consolidado.
 - [ ] Auditar e testar cadastro, login, logout, refresh de sessão e recuperação/redefinição de palavra-passe contra o backend real.
 - [ ] Testar CRUD real de clientes.
 - [ ] Testar CRUD, PDF, email, WhatsApp e conversão de orçamentos.
@@ -92,9 +92,9 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 ## Infraestrutura confirmada
 
 - Vercel projeto `factuur-snel-helper` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
-- O serviço Railway de produção ainda está ligado a `gustavoort/FactuurSnel`, branch `main`, root `/backend`.
+- O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes.
 - O Railway usa builder RAILPACK no serviço atual; por isso a presença do Dockerfile no repositório não prova que ele será usado nesse serviço.
-- O código do backend já está no repositório oficial; a dependência restante do repositório legado é operacional, no source configurado do Railway.
+- O código do backend está no repositório oficial. A nova origem está configurada, mas é necessário comprovar o primeiro deploy do código novo e seus fluxos reais.
 
 ## Regra de conclusão
 
