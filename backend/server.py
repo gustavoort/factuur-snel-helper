@@ -168,7 +168,7 @@ async def get_current_user(request: Request) -> dict:
 
 
 # Create the main app
-app = FastAPI(title="FactuurSnel API", version="1.0.0")
+app = FastAPI(title="Faktuvi API", version="1.0.0")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -1242,7 +1242,7 @@ async def get_quote_whatsapp_link(quote_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Offerte niet gevonden")
 
     company = await db.companies.find_one({"user_id": user["_id"]}) or {}
-    company_name = company.get("company_name", "FactuurSnel")
+    company_name = company.get("company_name", "Faktuvi")
 
     message = f"Beste, hierbij ontvangt u offerte {quote_doc['quote_number']} van {company_name}. Totaalbedrag: €{quote_doc['total']:.2f}"
     whatsapp_url = f"https://wa.me/?text={quote(message)}"
@@ -1258,7 +1258,7 @@ async def get_invoice_whatsapp_link(invoice_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Factuur niet gevonden")
 
     company = await db.companies.find_one({"user_id": user["_id"]}) or {}
-    company_name = company.get("company_name", "FactuurSnel")
+    company_name = company.get("company_name", "Faktuvi")
 
     message = f"Beste, hierbij ontvangt u factuur {invoice_doc['invoice_number']} van {company_name}. Totaalbedrag: €{invoice_doc['total']:.2f}"
     whatsapp_url = f"https://wa.me/?text={quote(message)}"
