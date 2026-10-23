@@ -1,6 +1,7 @@
 # FactuurSnel — Estado técnico atual
 
 Data da auditoria inicial: 2026-09-13
+Última atualização de estado: 2026-10-23
 Repositório oficial: `gustavoort/factuur-snel-helper`
 Branch auditada: `main`
 
@@ -86,9 +87,11 @@ A área privada é protegida por `ProtectedRoute`. As rotas autenticadas usam `s
 
 Em produção, todas as requisições usam same-origin `/api`. Em desenvolvimento local pode ser definido `VITE_API_URL`, que é normalizado para `<base>/api`.
 
-O backend não está contido neste repositório. Por isso, banco de dados, regras server-side, Resend, Stripe e persistência real precisam ser validados contra o serviço backend já existente e o ambiente de produção.
+O backend FastAPI está agora versionado em `backend/` neste repositório. O serviço Railway de produção usa `gustavoort/factuur-snel-helper`, branch `main`, diretório `/backend`; o deployment do commit `7163f5c` está `SUCCESS`. Os logs de build confirmam o uso do Dockerfile, a instalação dos requisitos e a execução de `python patch_server.py`.
 
-Não foi encontrada integração frontend direta com Supabase no código auditado.
+As métricas recentes do Railway mostram respostas 2xx em `/api/subscription/plans` e `/api/dashboard`. `/api/auth/me` tem respostas 401 sem sessão, esperadas, e também uma resposta 2xx. Isto confirma conectividade básica, não os fluxos completos de autenticação, persistência e faturação.
+
+Não foi encontrada integração frontend direta com Supabase no código auditado. Resend, Stripe, persistência e autorização ainda precisam de testes funcionais com uma conta de teste.
 
 ## 8. Módulos funcionais presentes no frontend
 
@@ -133,47 +136,38 @@ Existe tratamento global de erro no root, mensagens de API traduzidas e um wrapp
 
 Há, porém, código específico de Lovable no fluxo de reporting de erros que precisa ser substituído antes da independência completa da plataforma.
 
-## 11. Dependências do Lovable confirmadas
+## 11. Remoção do Lovable e segurança de dependências
 
-### Dependência de build
-`vite.config.ts` importa `defineConfig` de `@lovable.dev/vite-tanstack-config`. Esse pacote também está listado em `devDependencies`.
-
-O comentário do próprio arquivo afirma que o pacote injeta/configura TanStack Start, React, Tailwind, Nitro, aliases, variáveis VITE e plugins de erro. Portanto ele não pode ser removido sem antes reproduzir a configuração necessária nativamente.
-
-### Runtime/dev tooling
-- `src/lib/lovable-error-reporting.ts`
-- chamada de `reportLovableError` em `src/routes/__root.tsx`
-- pasta `.lovable/`
-- README ainda orientado ao fluxo de desenvolvimento Lovable
+- `vite.config.ts` usa configuração nativa Vite + TanStack Start + Nitro + React + Tailwind + `vite-tsconfig-paths`; já não importa `@lovable.dev/vite-tanstack-config`.
+- A dependência de configuração do Lovable, o reporting de erros específico, os metadados `.lovable/` e as instruções antigas do Lovable foram removidos.
+- O deployment de produção do Vercel foi corrigido no commit `36c50ce`: `@tanstack/react-start` está fixado em `1.168.61`, versão corrigida para CVE-2026-102989, e o deployment está `READY`.
+- O `bun.lock` antigo foi removido porque fixava a versão vulnerável `1.168.32`. O build de produção atual usa `npm install` e passa, mas ainda é necessário gerar e commitar um `package-lock.json` validado para tornar a resolução das dependências reproduzível.
 
 ## 12. Arquivos/configurações que exigem atenção antes do lançamento
 
-- `.env` está versionado, embora atualmente tenha tamanho mínimo; deve ser removido do controle de versão e mantido apenas `.env.example`.
-- README atual está obsoleto e orienta desenvolvimento via Lovable.
-- `vite.config.ts` ainda depende diretamente do Lovable.
-- metadata global ainda usa `FactuurSnel`/Twitter fixos e precisa ser revisada na etapa final de SEO/branding.
-- `public/robots.txt` precisa ser validado para produção.
-- sitemap não foi identificado na árvore auditada.
-- não foi identificado teste automatizado do frontend no repositório atual.
+- Gerar e versionar `package-lock.json` com a árvore de dependências corrigida; não voltar a introduzir a versão vulnerável fixada no antigo `bun.lock`.
+- Finalizar metadata global, canonical e Open Graph com o domínio definitivo.
+- Confirmar sitemap; não foi identificado um sitemap na árvore auditada.
+- Não foi identificada uma suíte automatizada completa de testes de frontend.
+- Privacidade e termos ainda devem passar por revisão jurídica antes do lançamento comercial definitivo.
 
-## 13. Itens ainda não validados em runtime
+## 13. Estado dos testes de runtime
 
-Os pontos abaixo não podem ser declarados como aprovados apenas pela leitura do código e serão validados durante a revisão de produção:
+### Confirmado
 
-- build limpo fora do ambiente Lovable;
-- lint completo;
-- comportamento real do proxy `/api` no deploy;
-- login/cadastro/logout/refresh contra backend real;
-- recuperação e redefinição de palavra-passe;
-- CRUD real de clientes;
-- CRUD real de orçamentos;
-- CRUD real de faturas;
-- geração/download/envio de PDF, quando exposto pelo backend;
-- checkout e webhook Stripe;
-- persistência e origem dos dados do dashboard;
-- permissões/autorização server-side;
-- Resend e emails transacionais;
-- comportamento de callbacks em domínio final.
+- Build e deployment de produção Vercel `READY` no commit `36c50ce`, após corrigir a dependência vulnerável do TanStack Start.
+- Deployment Railway `SUCCESS` no repositório oficial, commit `7163f5c`; o build executou `backend/patch_server.py`.
+- `/api/subscription/plans` respondeu 2xx; `/api/dashboard` respondeu 2xx em métricas recentes do Railway.
+- `/api/auth/me` devolve 401 quando não há sessão, comportamento esperado; também há uma resposta 2xx nas métricas recentes.
+
+### Ainda pendente de teste funcional
+
+- Cadastro, login, logout, refresh de sessão e recuperação/redefinição de palavra-passe com conta de teste.
+- CRUD real de clientes, orçamentos e faturas, incluindo autorização entre utilizadores.
+- Geração e download de PDFs, envio de email via Resend, links WhatsApp e conversão de orçamento em fatura.
+- Checkout e webhooks Stripe em modo de teste; validar idempotência e estados de subscrição.
+- Instalação limpa, lint e testes automatizados; a compilação de produção passou, mas não substitui estes testes.
+- Comportamento de desktop/mobile, acessibilidade básica e fluxos de erro 4xx/5xx.
 
 ## 14. Funcionalidades que ainda não existem no produto atual
 
