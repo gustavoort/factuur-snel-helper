@@ -8,7 +8,7 @@ export const SUPPORTED_LANGUAGES = ["nl", "en", "pt"] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
 export const DEFAULT_LANGUAGE: Language = "nl";
-export const LANGUAGE_STORAGE_KEY = "factuursnel.lang";
+export const LANGUAGE_STORAGE_KEY = "faktuvi.lang";
 
 export const LOCALE_TAGS: Record<Language, string> = {
   nl: "nl-NL",
