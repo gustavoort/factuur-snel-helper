@@ -8,7 +8,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
         F
       </span>
       {!compact && (
-        <span className="text-base font-semibold tracking-tight text-foreground">FactuurSnel</span>
+        <span className="text-base font-semibold tracking-tight text-foreground">Faktuvi</span>
       )}
     </span>
   );
