@@ -53,7 +53,7 @@ function Brand() {
   return (
     <span className="flex items-center gap-3">
       <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
-        <ArrowDownRight className="size-5" strokeWidth={2.4} />
+        <span className="text-lg font-extrabold tracking-tight" aria-hidden="true">F</span>
       </span>
       <span className="text-sm font-bold text-foreground">{PRODUCT_NAME}</span>
     </span>
