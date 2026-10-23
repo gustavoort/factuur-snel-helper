@@ -1,4 +1,4 @@
-# FactuurSnel — Checklist de lançamento
+# Faktuvi — Checklist de lançamento
 
 Última atualização: 2026-10-23
 
