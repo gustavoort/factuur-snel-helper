@@ -23,7 +23,7 @@ if not STRIPE_SECRET_KEY:
 
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-EMAIL_FROM = os.environ.get("EMAIL_FROM", "FactuurSnel <onboarding@resend.dev>")
+EMAIL_FROM = os.environ.get("EMAIL_FROM", "Faktuvi <onboarding@resend.dev>")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 JWT_SECRET = os.environ.get("JWT_SECRET")'''
@@ -90,9 +90,9 @@ old_reset = '''    logger.info(f"[MOCK EMAIL] Password reset link for {email}: /
 new_reset = '''    reset_url = f"{FRONTEND_URL}/reset-password?token={quote(token)}"
     await send_transactional_email(
         email,
-        "Wachtwoord opnieuw instellen - FactuurSnel",
+        "Wachtwoord opnieuw instellen - Faktuvi",
         f"""
-        <p>U heeft gevraagd om uw FactuurSnel-wachtwoord opnieuw in te stellen.</p>
+        <p>U heeft gevraagd om uw Faktuvi-wachtwoord opnieuw in te stellen.</p>
         <p><a href=\"{reset_url}\">Klik hier om een nieuw wachtwoord in te stellen</a>.</p>
         <p>Deze link is 1 uur geldig. Heeft u dit niet aangevraagd, dan kunt u dit bericht negeren.</p>
         """,
@@ -124,7 +124,7 @@ async def send_quote_email(quote_id: str, request: Request):
         raise HTTPException(status_code=400, detail="Klant heeft geen e-mailadres")
 
     company = await db.companies.find_one({"user_id": user["_id"]}) or {}
-    company_name = company.get("company_name") or "FactuurSnel"
+    company_name = company.get("company_name") or "Faktuvi"
     html_content = generate_pdf_html("quote", quote_doc, company, client_doc)
     pdf = HTML(string=html_content).write_pdf()
     quote_number = quote_doc.get("quote_number", quote_id)
@@ -166,7 +166,7 @@ async def send_invoice_email(invoice_id: str, request: Request):
         raise HTTPException(status_code=400, detail="Klant heeft geen e-mailadres")
 
     company = await db.companies.find_one({"user_id": user["_id"]}) or {}
-    company_name = company.get("company_name") or "FactuurSnel"
+    company_name = company.get("company_name") or "Faktuvi"
     html_content = generate_pdf_html("invoice", invoice_doc, company, client_doc)
     pdf = HTML(string=html_content).write_pdf()
     invoice_number = invoice_doc.get("invoice_number", invoice_id)
@@ -275,7 +275,7 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
                 {
                     "price_data": {
                         "currency": "eur",
-                        "product_data": {"name": f"FactuurSnel {SUBSCRIPTION_PLANS[plan]['name']}"},
+                        "product_data": {"name": f"Faktuvi {SUBSCRIPTION_PLANS[plan]['name']}"},
                         "unit_amount": PAID_PLAN_AMOUNTS[plan],
                         "recurring": {"interval": "month"},
                     },

@@ -1,6 +1,6 @@
 const nl = {
   common: {
-    appName: "FactuurSnel",
+    appName: "Faktuvi",
     save: "Opslaan",
     saveChanges: "Wijzigingen opslaan",
     cancel: "Annuleren",
@@ -73,13 +73,13 @@ const nl = {
   landing: {
     title: "Offertes en facturen in seconden",
     subtitle:
-      "FactuurSnel helpt ondernemers met klanten, offertes, facturen, PDF's en betaalstatus — alles op één plek.",
+      "Faktuvi helpt ondernemers met klanten, offertes, facturen, PDF's en betaalstatus — alles op één plek.",
     login: "Inloggen",
     register: "Gratis starten",
     ctaPrimary: "Gratis account aanmaken",
-    metaTitle: "FactuurSnel — Offertes en facturen in seconden",
+    metaTitle: "Faktuvi — Offertes en facturen in seconden",
     metaDescription:
-      "FactuurSnel is de eenvoudige facturatiesoftware voor ondernemers: klanten, offertes, facturen en PDF's.",
+      "Faktuvi is de eenvoudige facturatiesoftware voor ondernemers: klanten, offertes, facturen en PDF's.",
   },
   auth: {
     email: "E-mail",
@@ -87,7 +87,7 @@ const nl = {
     name: "Naam",
     login: {
       title: "Welkom terug",
-      subtitle: "Log in op je FactuurSnel-account.",
+      subtitle: "Log in op je Faktuvi-account.",
       submit: "Inloggen",
       forgot: "Wachtwoord vergeten?",
       noAccount: "Nog geen account?",
@@ -96,7 +96,7 @@ const nl = {
     },
     register: {
       title: "Account aanmaken",
-      subtitle: "Start gratis met FactuurSnel.",
+      subtitle: "Start gratis met Faktuvi.",
       submit: "Registreren",
       haveAccount: "Heb je al een account?",
       loginLink: "Inloggen",

@@ -1,6 +1,6 @@
 const pt = {
   common: {
-    appName: "FactuurSnel",
+    appName: "Faktuvi",
     save: "Salvar",
     saveChanges: "Salvar alterações",
     cancel: "Cancelar",
@@ -72,13 +72,13 @@ const pt = {
   landing: {
     title: "Orçamentos e faturas em segundos",
     subtitle:
-      "O FactuurSnel ajuda empreendedores com clientes, orçamentos, faturas, PDFs e status de pagamento — tudo em um só lugar.",
+      "O Faktuvi ajuda empreendedores com clientes, orçamentos, faturas, PDFs e status de pagamento — tudo em um só lugar.",
     login: "Entrar",
     register: "Começar grátis",
     ctaPrimary: "Criar conta gratuita",
-    metaTitle: "FactuurSnel — Orçamentos e faturas em segundos",
+    metaTitle: "Faktuvi — Orçamentos e faturas em segundos",
     metaDescription:
-      "FactuurSnel é o software simples de faturamento para empreendedores: clientes, orçamentos, faturas e PDFs.",
+      "Faktuvi é o software simples de faturamento para empreendedores: clientes, orçamentos, faturas e PDFs.",
   },
   auth: {
     email: "E-mail",
@@ -86,7 +86,7 @@ const pt = {
     name: "Nome",
     login: {
       title: "Bem-vindo de volta",
-      subtitle: "Entre na sua conta FactuurSnel.",
+      subtitle: "Entre na sua conta Faktuvi.",
       submit: "Entrar",
       forgot: "Esqueceu a senha?",
       noAccount: "Ainda não tem conta?",
@@ -95,7 +95,7 @@ const pt = {
     },
     register: {
       title: "Criar conta",
-      subtitle: "Comece a usar o FactuurSnel gratuitamente.",
+      subtitle: "Comece a usar o Faktuvi gratuitamente.",
       submit: "Cadastrar",
       haveAccount: "Já tem uma conta?",
       loginLink: "Entrar",

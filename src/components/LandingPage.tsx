@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowDownRight,
   ArrowRight,
   Check,
   CircleCheck,
@@ -16,9 +15,10 @@ import { useEffect, useState } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
-const PRODUCT_NAME = "FactuurSnel";
+const PRODUCT_NAME = "Faktuvi";
 
 const features = [
   [Users, "Klantenbeheer", "Bewaar klantgegevens centraal en gebruik ze direct in offertes en facturen."],
@@ -50,14 +50,7 @@ const plans = [
 ];
 
 function Brand() {
-  return (
-    <span className="flex items-center gap-3">
-      <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
-        <ArrowDownRight className="size-5" strokeWidth={2.4} />
-      </span>
-      <span className="text-sm font-bold text-foreground">{PRODUCT_NAME}</span>
-    </span>
-  );
+  return <Logo />;
 }
 
 function LandingNav() {
@@ -156,7 +149,7 @@ export function LandingPage() {
 
         <section id="product" className="border-y border-border bg-landing-panel px-5 py-24 sm:px-8 lg:py-32">
           <div className="mx-auto max-w-7xl">
-            <div className="max-w-3xl"><p className="text-xs font-bold uppercase text-primary">Product</p><h2 className="mt-4 text-3xl font-semibold sm:text-5xl">Alles wat je nodig hebt om sneller te factureren.</h2><p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg">FactuurSnel richt zich op de dagelijkse administratie tussen klant, offerte, factuur en betaling.</p></div>
+            <div className="max-w-3xl"><p className="text-xs font-bold uppercase text-primary">Product</p><h2 className="mt-4 text-3xl font-semibold sm:text-5xl">Alles wat je nodig hebt om sneller te factureren.</h2><p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg">Faktuvi houdt de dagelijkse administratie tussen klant, offerte, factuur en betaling overzichtelijk.</p></div>
             <div className="mt-12 grid gap-5 md:grid-cols-2">
               {features.map(([Icon, title, copy]) => (
                 <div key={title} className="rounded-3xl border border-border bg-card p-6 sm:p-8">
@@ -175,7 +168,7 @@ export function LandingPage() {
             <div className="mt-12 grid gap-5 lg:grid-cols-3">
               {[
                 ["01", "Voeg je klant toe", "Bewaar contact- en bedrijfsgegevens zodat je ze niet telkens opnieuw hoeft in te voeren."],
-                ["02", "Maak offerte of factuur", "Voeg regels, aantallen, prijzen en btw toe. FactuurSnel berekent de totalen voor je."],
+                ["02", "Maak offerte of factuur", "Voeg regels, aantallen, prijzen en btw toe. Faktuvi berekent de totalen voor je."],
                 ["03", "Verstuur en volg", "Download als PDF, verstuur per e-mail, deel via WhatsApp en houd de status van je factuur bij."],
               ].map(([number, title, copy]) => (
                 <div key={number} className="rounded-3xl border border-border bg-card p-6 sm:p-8"><span className="text-sm font-bold text-primary">{number}</span><h3 className="mt-5 text-2xl font-semibold">{title}</h3><p className="mt-4 text-sm leading-6 text-muted-foreground">{copy}</p></div>
@@ -216,12 +209,12 @@ export function LandingPage() {
             <div><p className="text-xs font-bold uppercase text-primary">FAQ</p><h2 className="mt-4 text-3xl font-semibold sm:text-5xl">Veelgestelde vragen.</h2></div>
             <Accordion type="single" collapsible>
               {[
-                ["Kan ik FactuurSnel gratis gebruiken?", "Ja. Het Free-plan bevat maximaal 5 offertes en 5 facturen per maand."],
+                ["Kan ik Faktuvi gratis gebruiken?", "Ja. Het Free-plan bevat maximaal 5 offertes en 5 facturen per maand."],
                 ["Kan ik offertes omzetten in facturen?", "Ja. Vanuit een offerte kun je een factuur aanmaken zonder alle regels opnieuw in te voeren."],
                 ["Kan ik PDF's downloaden?", "Ja. Offertes en facturen kunnen als PDF worden gedownload."],
                 ["Kan ik documenten per e-mail versturen?", "Ja. E-mailverzending is onderdeel van de betaalde functionaliteit en vereist een correct geconfigureerde e-mailservice."],
                 ["Kan mijn klant online betalen?", "Met het Business-plan kan voor een factuur een Stripe-betaallink worden aangemaakt."],
-                ["Werkt FactuurSnel op mobiel?", "Ja. De interface is ontworpen voor zowel desktop als mobiel gebruik."],
+                ["Werkt Faktuvi op mobiel?", "Ja. De interface is ontworpen voor zowel desktop als mobiel gebruik."],
               ].map(([question, answer]) => <AccordionItem key={question} value={question}><AccordionTrigger className="py-6 text-left text-base font-semibold">{question}</AccordionTrigger><AccordionContent className="pb-6 text-base leading-7 text-muted-foreground">{answer}</AccordionContent></AccordionItem>)}
             </Accordion>
           </div>

@@ -1,4 +1,4 @@
-# FactuurSnel — Estado técnico atual
+# Faktuvi — Estado técnico atual
 
 Data da auditoria inicial: 2026-09-13
 Última atualização de estado: 2026-10-23
