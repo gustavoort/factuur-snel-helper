@@ -1,6 +1,6 @@
-# FactuurSnel
+# Faktuvi
 
-Official repository for the FactuurSnel SaaS.
+Official repository for the Faktuvi SaaS.
 
 ## Stack
 
