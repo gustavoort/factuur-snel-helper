@@ -1,8 +1,16 @@
-# FactuurSnel — Checklist de lançamento
+# Faktuvi — Checklist de lançamento
 
 Última atualização: 2026-10-23
 
 Este checklist é atualizado contra o código e deploy reais. Um item só recebe `OK` quando foi verificado; build isolado não é suficiente para aprovar um fluxo funcional.
+
+## IDENTIDADE VISUAL E DOMÍNIO
+
+- [x] Marca pública Faktuvi aplicada à landing, logo, traduções, páginas legais, backend e favicon SVG.
+- [x] Metadados SEO da página inicial atualizados para Faktuvi.
+- [x] Projeto Vercel renomeado para `faktuvi`; domínios `faktuvi.nl` e `www.faktuvi.nl` associados e verificados na Vercel.
+- [ ] Testar resolução DNS e resposta HTTP pública de `https://www.faktuvi.nl` após propagação.
+- [ ] Confirmar remetente de e-mail próprio e verificar domínio no Resend.
 
 ## FUNCIONANDO
 
@@ -96,7 +104,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 
 ## Infraestrutura confirmada
 
-- Vercel projeto `factuur-snel-helper` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
+- Vercel projeto `faktuvi` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
 - O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes. As variáveis `RESEND_API_KEY` e `EMAIL_FROM` ainda não aparecem na configuração consultada.
 - A configuração do serviço Railway ainda reporta builder RAILPACK, mas o deployment atual gerou a imagem via BuildKit e os logs mostram etapas do Dockerfile, incluindo `RUN python patch_server.py`. Manter esta divergência documentada e confirmar novamente no próximo deploy.
 - O backend do repositório oficial já foi implantado com sucesso no Railway. Permanecem pendentes os testes end-to-end de autenticação, CRUD, PDFs, email, WhatsApp e pagamentos.
