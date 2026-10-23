@@ -75,7 +75,8 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [ ] Finalizar sitemap/canonical/Open Graph com a URL oficial quando o domínio final for definido.
 - [ ] Revisar juridicamente privacidade/termos antes do lançamento comercial definitivo.
 - [ ] Configurar domínio somente após todos os itens de código estarem aprovados.
-- [ ] Configurar Resend/domínio de envio/SPF/DKIM e realizar teste real somente na etapa final.
+- [ ] Configurar `RESEND_API_KEY` e `EMAIL_FROM` no Railway (não aparecem entre as variáveis atuais); sem `RESEND_API_KEY`, o backend devolve HTTP 503 ao enviar email.
+- [ ] Configurar domínio de envio/SPF/DKIM no Resend e realizar teste real somente na etapa final.
 
 ## Testes de produção já executados
 
@@ -88,7 +89,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 | `GET /` | PASS — HTTP 200 |
 | `GET /login` | PASS — HTTP 200 |
 | `GET /api/auth/me` sem sessão | PASS — HTTP 401 esperado |
-| `GET /api/subscription/plans` | PASS — HTTP 200 |
+| `GET /api/subscription/plans` | PASS — HTTP 200, JSON com planos Free/Pro/Business |
 | Verificação HTML da nova landing | PASS PARCIAL — conteúdo funcional alinhado; metadata foi corrigida em commit posterior |
 | Backend consolidado no repositório oficial | PASS — deployment Railway `SUCCESS`, build executou `patch_server.py` |
 | `GET /api/dashboard` | PASS parcial — métrica Railway mostra 1 resposta 2xx; confirmar comportamento autenticado com sessão de teste |
@@ -96,7 +97,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 ## Infraestrutura confirmada
 
 - Vercel projeto `factuur-snel-helper` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
-- O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes.
+- O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes. As variáveis `RESEND_API_KEY` e `EMAIL_FROM` ainda não aparecem na configuração consultada.
 - A configuração do serviço Railway ainda reporta builder RAILPACK, mas o deployment atual gerou a imagem via BuildKit e os logs mostram etapas do Dockerfile, incluindo `RUN python patch_server.py`. Manter esta divergência documentada e confirmar novamente no próximo deploy.
 - O backend do repositório oficial já foi implantado com sucesso no Railway. Permanecem pendentes os testes end-to-end de autenticação, CRUD, PDFs, email, WhatsApp e pagamentos.
 
