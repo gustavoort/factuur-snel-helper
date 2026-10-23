@@ -1,4 +1,4 @@
-# FactuurSnel — Estado técnico atual
+# Faktuvi — Estado técnico atual
 
 Data da auditoria inicial: 2026-09-13
 Última atualização de estado: 2026-10-23
@@ -6,6 +6,14 @@ Repositório oficial: `gustavoort/factuur-snel-helper`
 Branch auditada: `main`
 
 > Este documento descreve apenas o que foi confirmado diretamente no código do repositório atual. Pontos que dependem de backend externo, configuração de deploy ou credenciais são identificados como pendentes de validação de runtime.
+
+## Identidade e domínio atuais
+
+- Marca pública: **Faktuvi**.
+- Assinatura: **Faktuvi — Offertes. Facturen. Overzicht.**
+- Paleta: `#245747` (verde principal), `#E5EEE8` (verde claro), `#F7F5EF` (fundo quente), `#292F2C` (texto).
+- Domínio principal configurado na Vercel: `www.faktuvi.nl`; `faktuvi.nl` redireciona para `www.faktuvi.nl`.
+- Ícone: `public/faktuvi.svg`; a Vercel marcou os dois domínios como verificados. A verificação do domínio na Vercel não substitui um teste DNS/HTTP externo após propagação.
 
 ## 1. Arquitetura
 
