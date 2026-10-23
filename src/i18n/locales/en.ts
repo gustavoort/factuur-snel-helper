@@ -1,6 +1,6 @@
 const en = {
   common: {
-    appName: "FactuurSnel",
+    appName: "Faktuvi",
     save: "Save",
     saveChanges: "Save changes",
     cancel: "Cancel",
@@ -72,13 +72,13 @@ const en = {
   landing: {
     title: "Quotes and invoices in seconds",
     subtitle:
-      "FactuurSnel helps entrepreneurs manage clients, quotes, invoices, PDFs and payment status — all in one place.",
+      "Faktuvi helps entrepreneurs manage clients, quotes, invoices, PDFs and payment status — all in one place.",
     login: "Log in",
     register: "Start for free",
     ctaPrimary: "Create a free account",
-    metaTitle: "FactuurSnel — Quotes and invoices in seconds",
+    metaTitle: "Faktuvi — Quotes and invoices in seconds",
     metaDescription:
-      "FactuurSnel is simple invoicing software for entrepreneurs: clients, quotes, invoices and PDFs.",
+      "Faktuvi is simple invoicing software for entrepreneurs: clients, quotes, invoices and PDFs.",
   },
   auth: {
     email: "Email",
@@ -86,7 +86,7 @@ const en = {
     name: "Name",
     login: {
       title: "Welcome back",
-      subtitle: "Log in to your FactuurSnel account.",
+      subtitle: "Log in to your Faktuvi account.",
       submit: "Log in",
       forgot: "Forgot your password?",
       noAccount: "Don't have an account yet?",
@@ -95,7 +95,7 @@ const en = {
     },
     register: {
       title: "Create account",
-      subtitle: "Get started with FactuurSnel for free.",
+      subtitle: "Get started with Faktuvi for free.",
       submit: "Sign up",
       haveAccount: "Already have an account?",
       loginLink: "Log in",
