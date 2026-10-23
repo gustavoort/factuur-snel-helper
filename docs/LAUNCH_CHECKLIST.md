@@ -90,16 +90,14 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 | `GET /api/subscription/plans` | PASS — HTTP 200 |
 | Verificação HTML da nova landing | PASS PARCIAL — conteúdo funcional alinhado; metadata foi corrigida em commit posterior |
 | Backend consolidado no repositório oficial | PASS — deployment Railway `SUCCESS`, build executou `patch_server.py` |
-| `GET /api/subscription/plans` | PASS — métrica Railway mostra 1 resposta 2xx nas últimas 24 h |
 | `GET /api/dashboard` | PASS parcial — métrica Railway mostra 1 resposta 2xx; confirmar comportamento autenticado com sessão de teste |
-| `GET /api/auth/me` | PASS parcial — há respostas 401 sem sessão (esperadas) e uma resposta 2xx; repetir login/sessão com conta de teste |
 
 ## Infraestrutura confirmada
 
 - Vercel projeto `factuur-snel-helper` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
 - O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes.
 - A configuração do serviço Railway ainda reporta builder RAILPACK, mas o deployment atual gerou a imagem via BuildKit e os logs mostram etapas do Dockerfile, incluindo `RUN python patch_server.py`. Manter esta divergência documentada e confirmar novamente no próximo deploy.
-- O código do backend está no repositório oficial. A nova origem está configurada, mas é necessário comprovar o primeiro deploy do código novo e seus fluxos reais.
+- O backend do repositório oficial já foi implantado com sucesso no Railway. Permanecem pendentes os testes end-to-end de autenticação, CRUD, PDFs, email, WhatsApp e pagamentos.
 
 ## Regra de conclusão
 
