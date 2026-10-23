@@ -61,7 +61,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [x] Build/runtime do backend confirmado no Railway: deployment `SUCCESS`; logs mostram as etapas do Dockerfile, instalação de requisitos e execução de `python patch_server.py`. Os fluxos funcionais ainda requerem testes separados.
 - [x] Fonte e implantação do serviço Railway confirmadas: `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`; deployment `SUCCESS` no commit `7163f5c`.
 - [x] Confirmar novo build e deploy Railway a partir do repositório correto: concluído no commit `7163f5c`.
-- [ ] Resolver o bloqueio de segurança do Vercel em produção: o build anterior foi bloqueado por `@tanstack/react-start@1.168.32` (CVE-2026-102989). O PR #1 usa `@tanstack/react-start@1.168.61` e o preview no commit `cc9a0e9` está `READY`; ainda falta merge e confirmação do novo deployment de produção.
+- [x] Resolver o bloqueio de segurança do Vercel: PR #1 foi integrado no commit `36c50ce`; `@tanstack/react-start` está fixado em `1.168.61` (versão corrigida para CVE-2026-102989) e o deployment de produção ficou `READY`.
 - [ ] Auditar e testar cadastro, login, logout, refresh de sessão e recuperação/redefinição de palavra-passe contra o backend real.
 - [ ] Testar CRUD real de clientes.
 - [ ] Testar CRUD, PDF, email, WhatsApp e conversão de orçamentos.
@@ -83,6 +83,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 | --- | --- |
 | Deploy após config Vite nativa | PASS — Vercel READY |
 | Deploy após remoção da dependência Lovable do `package.json` | PASS — Vercel READY |
+| Deploy de produção após correção CVE-2026-102989 | PASS — Vercel `READY`, commit `36c50ce` |
 | Deploy da nova landing | PASS — Vercel READY |
 | `GET /` | PASS — HTTP 200 |
 | `GET /login` | PASS — HTTP 200 |
