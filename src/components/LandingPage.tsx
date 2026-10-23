@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowDownRight,
   ArrowRight,
   Check,
   CircleCheck,
@@ -141,7 +140,7 @@ export function LandingPage() {
         <section className="px-5 pb-24 pt-32 sm:px-8 lg:pb-32 lg:pt-40">
           <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
             <div>
-              <span className="inline-flex rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold shadow-sm">Offertes en facturen zonder onnodig gedoe</span>
+              <span className="inline-flex rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold shadow-sm">Offertes. Facturen. Overzicht.</span>
               <h1 className="mt-7 max-w-3xl text-5xl font-semibold leading-[0.98] sm:text-6xl lg:text-7xl">Van offerte naar <span className="text-primary">betaald</span>.</h1>
               <p className="mt-7 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">Maak offertes en facturen, beheer klanten, verstuur documenten als PDF of per e-mail en houd betalingen overzichtelijk bij — in één eenvoudige omgeving.</p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
