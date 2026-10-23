@@ -1,6 +1,6 @@
 # FactuurSnel — Checklist de lançamento
 
-Última atualização: 2026-10-22
+Última atualização: 2026-10-23
 
 Este checklist é atualizado contra o código e deploy reais. Um item só recebe `OK` quando foi verificado; build isolado não é suficiente para aprovar um fluxo funcional.
 
@@ -17,6 +17,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [x] Traduções NL/EN/PT presentes no projeto.
 - [x] Responsividade básica do shell interno: sidebar desktop + menu móvel.
 - [x] Código fonte do backend atual consolidado em `backend/` dentro do repositório oficial.
+- [x] Railway: deployment `SUCCESS` do repositório oficial `gustavoort/factuur-snel-helper`, branch `main`, commit `7163f5c`; logs confirmam execução de `python patch_server.py` no Dockerfile.
 - [x] Requisitos Python, Dockerfile e patch de produção do backend consolidados no repositório oficial.
 - [x] Proxy `/api` em produção validado: endpoint autenticado devolve 401 quando não há sessão e endpoint público de planos devolve 200.
 
@@ -56,10 +57,11 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 
 ## PENDENTE — BLOQUEADORES DE LANÇAMENTO
 
-- [ ] Regenerar/sincronizar `bun.lock` numa instalação limpa para retirar referências antigas do pacote Lovable.
-- [ ] Validar `backend/server.py` + `backend/patch_server.py` em build/runtime isolado. Foi adicionado `backend/railway.json` para forçar o Dockerfile, mas a compilação e o arranque ainda não foram validados.
-- [x] Fonte do serviço Railway alterada para `gustavoort/factuur-snel-helper`, branch `main`, root `/backend` (configuração verificada; implantação do novo código ainda não comprovada).
-- [ ] Confirmar novo build e deploy Railway a partir do commit de `factuur-snel-helper`. O deploy FAILED mais recente consultado foi construído do repositório legado, portanto não valida o backend consolidado.
+- [ ] Versionar um lockfile de dependências consistente. O `bun.lock` antigo foi removido no PR de segurança para não reinstalar a versão vulnerável; o preview atual constrói com `npm install`, mas ainda falta gerar e commitar um `package-lock.json` validado.
+- [x] Build/runtime do backend confirmado no Railway: deployment `SUCCESS`; logs mostram as etapas do Dockerfile, instalação de requisitos e execução de `python patch_server.py`. Os fluxos funcionais ainda requerem testes separados.
+- [x] Fonte e implantação do serviço Railway confirmadas: `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`; deployment `SUCCESS` no commit `7163f5c`.
+- [x] Confirmar novo build e deploy Railway a partir do repositório correto: concluído no commit `7163f5c`.
+- [ ] Resolver o bloqueio de segurança do Vercel em produção: o build anterior foi bloqueado por `@tanstack/react-start@1.168.32` (CVE-2026-102989). O PR #1 usa `@tanstack/react-start@1.168.61` e o preview no commit `cc9a0e9` está `READY`; ainda falta merge e confirmação do novo deployment de produção.
 - [ ] Auditar e testar cadastro, login, logout, refresh de sessão e recuperação/redefinição de palavra-passe contra o backend real.
 - [ ] Testar CRUD real de clientes.
 - [ ] Testar CRUD, PDF, email, WhatsApp e conversão de orçamentos.
@@ -87,14 +89,15 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 | `GET /api/auth/me` sem sessão | PASS — HTTP 401 esperado |
 | `GET /api/subscription/plans` | PASS — HTTP 200 |
 | Verificação HTML da nova landing | PASS PARCIAL — conteúdo funcional alinhado; metadata foi corrigida em commit posterior |
-| Backend consolidado no repositório oficial | PASS de versionamento — runtime no novo repositório ainda não validado |
+| Backend consolidado no repositório oficial | PASS — deployment Railway `SUCCESS`, build executou `patch_server.py` |
+| `GET /api/dashboard` | PASS parcial — métrica Railway mostra 1 resposta 2xx; confirmar comportamento autenticado com sessão de teste |
 
 ## Infraestrutura confirmada
 
 - Vercel projeto `factuur-snel-helper` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
 - O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes.
-- O serviço Railway ainda reporta builder RAILPACK na configuração consultada. O repositório agora inclui `backend/railway.json` com builder DOCKERFILE; confirmar nos logs do próximo build se essa configuração foi aplicada.
-- O código do backend está no repositório oficial. A nova origem está configurada, mas é necessário comprovar o primeiro deploy do código novo e seus fluxos reais.
+- A configuração do serviço Railway ainda reporta builder RAILPACK, mas o deployment atual gerou a imagem via BuildKit e os logs mostram etapas do Dockerfile, incluindo `RUN python patch_server.py`. Manter esta divergência documentada e confirmar novamente no próximo deploy.
+- O backend do repositório oficial já foi implantado com sucesso no Railway. Permanecem pendentes os testes end-to-end de autenticação, CRUD, PDFs, email, WhatsApp e pagamentos.
 
 ## Regra de conclusão
 
