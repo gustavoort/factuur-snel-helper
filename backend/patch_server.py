@@ -393,8 +393,12 @@ async def apply_paid_checkout(session) -> None:
     elif checkout_type == "invoice_payment":
         invoice_id = metadata.get("invoice_id")
         if invoice_id:
+            user_id = metadata.get("user_id")
+            if not user_id or not ObjectId.is_valid(user_id):
+                logger.error("Ignoring invoice payment with invalid owner metadata")
+                return
             await db.invoices.update_one(
-                {"_id": parse_object_id(invoice_id, "invoice_id")},
+                {"_id": parse_object_id(invoice_id, "invoice_id"), "user_id": user_id},
                 {"$set": {"status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}}
             )
             await db.payment_transactions.update_one(
@@ -405,17 +409,26 @@ async def apply_paid_checkout(session) -> None:
 
 
 @api_router.get("/payments/status/{session_id}")
-async def get_payment_status(session_id: str):
+async def get_payment_status(session_id: str, request: Request):
+    # Read-only: only signed Stripe webhooks can apply payments.
+    user = await get_current_user(request)
+    transaction = await db.payment_transactions.find_one(
+        {"session_id": session_id, "user_id": user["_id"]},
+        {"_id": 0, "payment_status": 1, "type": 1}
+    )
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Betaling niet gevonden")
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except stripe.error.StripeError as exc:
         logger.exception("Stripe status error: %s", exc)
         raise HTTPException(status_code=502, detail="Betaalstatus kon niet worden opgehaald")
-
-    if session.payment_status == "paid":
-        await apply_paid_checkout(session)
-
-    return {"status": session.status, "payment_status": session.payment_status}
+    # Never mutate subscriptions or invoices from a browser status poll.
+    return {
+        "status": session.status,
+        "payment_status": transaction.get("payment_status", "pending"),
+        "type": transaction.get("type")
+    }
 
 
 @api_router.post("/stripe/webhook")
@@ -474,6 +487,51 @@ async def stripe_webhook(request: Request):
 
 '''
 source = source[:stripe_start] + stripe_section + source[stripe_end:]
+
+# --- Security hardening: tenant-scope embedded client lookups ---
+# Fail the deployment patch loudly if expected source patterns change.
+def replace_once(old: str, new: str, label: str) -> None:
+    global source
+    count = source.count(old)
+    if count != 1:
+        raise RuntimeError(f"Expected exactly one match for {label}, found {count}")
+    source = source.replace(old, new, 1)
+
+
+replace_once(
+    'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"])})',
+    'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"]), "user_id": user["_id"]})',
+    "quote client ownership",
+)
+# Invoice reads must not join a client from another account, even if legacy data
+# contains a mismatched client_id.
+# This lookup occurs in both the invoice list and invoice detail routes.
+old_invoice_client_lookup = 'db.clients.find_one({"_id": ObjectId(invoice_doc["client_id"])})'
+new_invoice_client_lookup = 'db.clients.find_one({"_id": ObjectId(invoice_doc["client_id"]), "user_id": user["_id"]})'
+invoice_lookup_count = source.count(old_invoice_client_lookup)
+if invoice_lookup_count < 1:
+    raise RuntimeError("Expected invoice client lookup patterns, found none")
+source = source.replace(old_invoice_client_lookup, new_invoice_client_lookup)
+# Apply password limits to both request models. Multiline strings intentionally
+# contain real newlines, not literal backslash-n sequences.
+replace_once(
+    """class UserRegister(BaseModel):
+    email: EmailStr
+    password: str""",
+    """class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=12, max_length=128)""",
+    "registration password policy",
+)
+replace_once(
+    """class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str""",
+    """class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(min_length=12, max_length=128)""",
+    "password reset policy",
+)
 
 path.write_text(source, encoding="utf-8")
 print("server.py patched: real email + recurring Stripe billing + webhook")
