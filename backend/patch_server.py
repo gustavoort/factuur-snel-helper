@@ -488,5 +488,20 @@ async def stripe_webhook(request: Request):
 '''
 source = source[:stripe_start] + stripe_section + source[stripe_end:]
 
+# --- Security hardening: tenant-scope embedded client lookups ---
+source = source.replace(
+    'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"])})',
+    'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"]), "user_id": user["_id"]})'
+)
+# Enforce minimum password length consistently for registration and reset.
+source = source.replace(
+    'class UserRegister(BaseModel):\n    email: EmailStr\n    password: str',
+    'class UserRegister(BaseModel):\n    email: EmailStr\n    password: str = Field(min_length=12, max_length=128)'
+)
+source = source.replace(
+    'class PasswordResetConfirm(BaseModel):\n    token: str\n    new_password: str',
+    'class PasswordResetConfirm(BaseModel):\n    token: str\n    new_password: str = Field(min_length=12, max_length=128)'
+)
+
 path.write_text(source, encoding="utf-8")
 print("server.py patched: real email + recurring Stripe billing + webhook")
