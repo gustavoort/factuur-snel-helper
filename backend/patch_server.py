@@ -489,18 +489,46 @@ async def stripe_webhook(request: Request):
 source = source[:stripe_start] + stripe_section + source[stripe_end:]
 
 # --- Security hardening: tenant-scope embedded client lookups ---
-source = source.replace(
+# Fail the deployment patch loudly if expected source patterns change.
+def replace_once(old: str, new: str, label: str) -> None:
+    global source
+    count = source.count(old)
+    if count != 1:
+        raise RuntimeError(f"Expected exactly one match for {label}, found {count}")
+    source = source.replace(old, new, 1)
+
+
+replace_once(
     'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"])})',
-    'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"]), "user_id": user["_id"]})'
+    'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"]), "user_id": user["_id"]})',
+    "quote client ownership",
 )
-# Enforce minimum password length consistently for registration and reset.
-source = source.replace(
-    'class UserRegister(BaseModel):\n    email: EmailStr\n    password: str',
-    'class UserRegister(BaseModel):\n    email: EmailStr\n    password: str = Field(min_length=12, max_length=128)'
+# Invoice reads must not join a client from another account, even if legacy data
+# contains a mismatched client_id.
+replace_once(
+    'db.clients.find_one({"_id": ObjectId(invoice_doc["client_id"])})',
+    'db.clients.find_one({"_id": ObjectId(invoice_doc["client_id"]), "user_id": user["_id"]})',
+    "invoice list client ownership",
 )
-source = source.replace(
-    'class PasswordResetConfirm(BaseModel):\n    token: str\n    new_password: str',
-    'class PasswordResetConfirm(BaseModel):\n    token: str\n    new_password: str = Field(min_length=12, max_length=128)'
+# Apply password limits to both request models. Multiline strings intentionally
+# contain real newlines, not literal backslash-n sequences.
+replace_once(
+    """class UserRegister(BaseModel):
+    email: EmailStr
+    password: str""",
+    """class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=12, max_length=128)""",
+    "registration password policy",
+)
+replace_once(
+    """class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str""",
+    """class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(min_length=12, max_length=128)""",
+    "password reset policy",
 )
 
 path.write_text(source, encoding="utf-8")
