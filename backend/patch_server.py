@@ -490,6 +490,14 @@ source = source[:stripe_start] + stripe_section + source[stripe_end:]
 
 # --- Security hardening: tenant-scope embedded client lookups ---
 # Apply ownership filters to every client join derived from a user's quote/invoice.
+def replace_once(old: str, new: str, label: str) -> None:
+    global source
+    count = source.count(old)
+    if count != 1:
+        raise RuntimeError(f"Expected exactly one match for {label}, found {count}")
+    source = source.replace(old, new, 1)
+
+
 def replace_all_required(old: str, new: str, label: str) -> None:
     global source
     count = source.count(old)
