@@ -489,31 +489,25 @@ async def stripe_webhook(request: Request):
 source = source[:stripe_start] + stripe_section + source[stripe_end:]
 
 # --- Security hardening: tenant-scope embedded client lookups ---
-# Fail the deployment patch loudly if expected source patterns change.
-def replace_once(old: str, new: str, label: str) -> None:
+# Apply ownership filters to every client join derived from a user's quote/invoice.
+def replace_all_required(old: str, new: str, label: str) -> None:
     global source
     count = source.count(old)
-    if count != 1:
-        raise RuntimeError(f"Expected exactly one match for {label}, found {count}")
-    source = source.replace(old, new, 1)
+    if count < 1:
+        raise RuntimeError(f"Expected at least one match for {label}, found {count}")
+    source = source.replace(old, new)
 
 
-replace_once(
+replace_all_required(
     'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"])})',
     'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"]), "user_id": user["_id"]})',
     "quote client ownership",
 )
-# Invoice reads must not join a client from another account, even if legacy data
-# contains a mismatched client_id.
-# This lookup occurs in both the invoice list and invoice detail routes.
-old_invoice_client_lookup = 'db.clients.find_one({"_id": ObjectId(invoice_doc["client_id"])})'
-new_invoice_client_lookup = 'db.clients.find_one({"_id": ObjectId(invoice_doc["client_id"]), "user_id": user["_id"]})'
-invoice_lookup_count = source.count(old_invoice_client_lookup)
-if invoice_lookup_count < 1:
-    raise RuntimeError("Expected invoice client lookup patterns, found none")
-source = source.replace(old_invoice_client_lookup, new_invoice_client_lookup)
-# Apply password limits to both request models. Multiline strings intentionally
-# contain real newlines, not literal backslash-n sequences.
+replace_all_required(
+    'db.clients.find_one({"_id": ObjectId(invoice_doc["client_id"])})',
+    'db.clients.find_one({"_id": ObjectId(invoice_doc["client_id"]), "user_id": user["_id"]})',
+    "invoice client ownership",
+)
 replace_once(
     """class UserRegister(BaseModel):
     email: EmailStr
