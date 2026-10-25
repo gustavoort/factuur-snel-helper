@@ -1,7 +1,7 @@
 # Faktuvi — Estado técnico atual
 
 Data da auditoria inicial: 2026-09-13
-Última atualização de estado: 2026-10-23
+Última atualização de estado: 2026-10-25
 Repositório oficial: `gustavoort/factuur-snel-helper`
 Branch auditada: `main`
 
@@ -150,6 +150,7 @@ Há, porém, código específico de Lovable no fluxo de reporting de erros que p
 - A dependência de configuração do Lovable, o reporting de erros específico, os metadados `.lovable/` e as instruções antigas do Lovable foram removidos.
 - O deployment de produção do Vercel foi corrigido no commit `36c50ce`: `@tanstack/react-start` está fixado em `1.168.61`, versão corrigida para CVE-2026-102989, e o deployment está `READY`.
 - O `bun.lock` antigo foi removido porque fixava a versão vulnerável `1.168.32`. O build de produção atual usa `npm install` e passa, mas ainda é necessário gerar e commitar um `package-lock.json` validado para tornar a resolução das dependências reproduzível.
+- O domínio `faktuvi.nl` está verificado no Resend; os registos DNS foram adicionados na Hostinger. O utilizador confirmou teste real bem-sucedido de recuperação de palavra-passe e envio de fatura por e-mail. As variáveis `RESEND_API_KEY` e `EMAIL_FROM` estão configuradas no Railway.
 
 ## 12. Arquivos/configurações que exigem atenção antes do lançamento
 
@@ -158,6 +159,7 @@ Há, porém, código específico de Lovable no fluxo de reporting de erros que p
 - Confirmar sitemap; não foi identificado um sitemap na árvore auditada.
 - Não foi identificada uma suíte automatizada completa de testes de frontend.
 - Privacidade e termos ainda devem passar por revisão jurídica antes do lançamento comercial definitivo.
+- O envio transacional de e-mail (recuperação de palavra-passe e fatura) foi testado manualmente pelo utilizador e funcionou em produção. Outros fluxos continuam por testar.
 
 ## 13. Estado dos testes de runtime
 
@@ -170,9 +172,9 @@ Há, porém, código específico de Lovable no fluxo de reporting de erros que p
 
 ### Ainda pendente de teste funcional
 
-- Cadastro, login, logout, refresh de sessão e recuperação/redefinição de palavra-passe com conta de teste.
+- Cadastro, login, logout e refresh de sessão com conta de teste. Recuperação/redefinição de palavra-passe foi testada manualmente pelo utilizador e funcionou.
 - CRUD real de clientes, orçamentos e faturas, incluindo autorização entre utilizadores.
-- Geração e download de PDFs, envio de email via Resend, links WhatsApp e conversão de orçamento em fatura.
+- Geração e download de PDFs, links WhatsApp e conversão de orçamento em fatura. O utilizador confirmou envio de fatura por e-mail via Resend.
 - Checkout e webhooks Stripe em modo de teste; validar idempotência e estados de subscrição.
 - Instalação limpa, lint e testes automatizados; a compilação de produção passou, mas não substitui estes testes.
 - Comportamento de desktop/mobile, acessibilidade básica e fluxos de erro 4xx/5xx.
