@@ -1,6 +1,6 @@
 # Faktuvi — Checklist de lançamento
 
-Última atualização: 2026-10-23
+Última atualização: 2026-10-25
 
 Este checklist é atualizado contra o código e deploy reais. Um item só recebe `OK` quando foi verificado; build isolado não é suficiente para aprovar um fluxo funcional.
 
@@ -9,8 +9,8 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [x] Marca pública Faktuvi aplicada à landing, logo, traduções, páginas legais, backend e favicon SVG.
 - [x] Metadados SEO da página inicial atualizados para Faktuvi.
 - [x] Projeto Vercel renomeado para `faktuvi`; domínios `faktuvi.nl` e `www.faktuvi.nl` associados e verificados na Vercel.
-- [ ] Testar resolução DNS e resposta HTTP pública de `https://www.faktuvi.nl` após propagação.
-- [ ] Confirmar remetente de e-mail próprio e verificar domínio no Resend.
+- [ ] Testar resolução DNS e resposta HTTP pública de `https://www.faktuvi.nl` por verificador independente; domínio verificado na Vercel e utilizador confirmou que o site abre no iPhone.
+- [x] Domínio `faktuvi.nl` verificado no Resend; utilizador confirmou teste real bem-sucedido de recuperação de palavra-passe e envio de fatura por e-mail.
 
 ## FUNCIONANDO
 
@@ -70,21 +70,21 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [x] Fonte e implantação do serviço Railway confirmadas: `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`; deployment `SUCCESS` no commit `7163f5c`.
 - [x] Confirmar novo build e deploy Railway a partir do repositório correto: concluído no commit `7163f5c`.
 - [x] Resolver o bloqueio de segurança do Vercel: PR #1 foi integrado no commit `36c50ce`; `@tanstack/react-start` está fixado em `1.168.61` (versão corrigida para CVE-2026-102989) e o deployment de produção ficou `READY`.
-- [ ] Auditar e testar cadastro, login, logout, refresh de sessão e recuperação/redefinição de palavra-passe contra o backend real.
+- [ ] Auditar e testar cadastro, login, logout e refresh de sessão contra o backend real. Recuperação de palavra-passe foi testada pelo utilizador e funcionou.
 - [ ] Testar CRUD real de clientes.
-- [ ] Testar CRUD, PDF, email, WhatsApp e conversão de orçamentos.
-- [ ] Testar CRUD, PDF, email, WhatsApp, pagamento e marcação de faturas.
+- [ ] Testar CRUD, PDF, WhatsApp e conversão de orçamentos. O envio de fatura por e-mail foi testado pelo utilizador com sucesso.
+- [ ] Testar CRUD, PDF, WhatsApp, pagamento e marcação de faturas. O envio de fatura por e-mail foi testado pelo utilizador com sucesso.
 - [ ] Testar billing/checkout e retorno de pagamento.
 - [ ] Confirmar contratos e autorização do backend para todos os endpoints usados pelo frontend.
 - [ ] Executar instalação limpa, lint e build fora do ambiente Lovable.
 - [ ] Testar fluxos reais em desktop e mobile, incluindo URLs diretas, refresh, sessão expirada, API offline, erros 4xx/5xx e estados vazios.
 - [ ] Revisar acessibilidade básica: teclado, labels, foco, contraste, headings e diálogos.
 - [ ] Revisar dependências e vulnerabilidades.
-- [ ] Finalizar sitemap/canonical/Open Graph com a URL oficial quando o domínio final for definido.
+- [ ] Verificar sitemap e confirmar canonical/Open Graph para `https://www.faktuvi.nl/` no HTML servido em produção.
 - [ ] Revisar juridicamente privacidade/termos antes do lançamento comercial definitivo.
-- [ ] Configurar domínio somente após todos os itens de código estarem aprovados.
-- [ ] Configurar `RESEND_API_KEY` e `EMAIL_FROM` no Railway (não aparecem entre as variáveis atuais); sem `RESEND_API_KEY`, o backend devolve HTTP 503 ao enviar email.
-- [ ] Configurar domínio de envio/SPF/DKIM no Resend e realizar teste real somente na etapa final.
+- [x] Domínio `faktuvi.nl` e `www.faktuvi.nl` configurados e verificados na Vercel; apex redireciona para `www` com HTTP 308.
+- [x] `RESEND_API_KEY` e `EMAIL_FROM` configuradas no Railway; deploy de produção SUCCESS e utilizador confirmou recuperação de palavra-passe e envio de fatura por e-mail.
+- [x] DNS de envio SPF/CNAME e DKIM configurados na Hostinger, domínio verificado no Resend e envio real testado pelo utilizador.
 
 ## Testes de produção já executados
 
@@ -101,13 +101,17 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 | Verificação HTML da nova landing | PASS PARCIAL — conteúdo funcional alinhado; metadata foi corrigida em commit posterior |
 | Backend consolidado no repositório oficial | PASS — deployment Railway `SUCCESS`, build executou `patch_server.py` |
 | `GET /api/dashboard` | PASS parcial — métrica Railway mostra 1 resposta 2xx; confirmar comportamento autenticado com sessão de teste |
+| Recuperação de palavra-passe real | PASS — confirmado pelo utilizador em 2026-10-25 |
+| Envio de fatura por e-mail real | PASS — confirmado pelo utilizador em 2026-10-25 |
+| Resend DNS e domínio | PASS — domínio verificado e remetente próprio configurado; envio real confirmado pelo utilizador |
+| Railway email variables | PASS — `RESEND_API_KEY` e `EMAIL_FROM` presentes na configuração de produção |
 
 ## Infraestrutura confirmada
 
 - Vercel projeto `faktuvi` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
-- O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes. As variáveis `RESEND_API_KEY` e `EMAIL_FROM` ainda não aparecem na configuração consultada.
+- O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes. As variáveis `RESEND_API_KEY` e `EMAIL_FROM` estão presentes na configuração de produção.
 - A configuração do serviço Railway ainda reporta builder RAILPACK, mas o deployment atual gerou a imagem via BuildKit e os logs mostram etapas do Dockerfile, incluindo `RUN python patch_server.py`. Manter esta divergência documentada e confirmar novamente no próximo deploy.
-- O backend do repositório oficial já foi implantado com sucesso no Railway. Permanecem pendentes os testes end-to-end de autenticação, CRUD, PDFs, email, WhatsApp e pagamentos.
+- O backend do repositório oficial já foi implantado com sucesso no Railway. Permanecem pendentes os testes end-to-end de cadastro/login/logout/refresh, CRUD, PDFs, WhatsApp e pagamentos; recuperação de palavra-passe e envio de fatura por e-mail foram confirmados pelo utilizador.
 
 ## Regra de conclusão
 
