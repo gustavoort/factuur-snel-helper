@@ -282,8 +282,8 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
                     "quantity": 1,
                 }
             ],
-            "metadata": {"user_id": user["_id"], "plan": plan, "type": "subscription"},
-            "subscription_data": {"metadata": {"user_id": user["_id"], "plan": plan, "type": "subscription"}},
+            "metadata": {"user_id": str(user["_id"]), "plan": plan, "type": "subscription"},
+            "subscription_data": {"metadata": {"user_id": str(user["_id"]), "plan": plan, "type": "subscription"}},
         }
         if user.get("stripe_customer_id"):
             session_kwargs["customer"] = user["stripe_customer_id"]
@@ -339,7 +339,7 @@ async def create_invoice_payment_link(invoice_id: str, request: Request):
             }],
             metadata={
                 "invoice_id": invoice_id,
-                "user_id": user["_id"],
+                "user_id": str(user["_id"]),
                 "type": "invoice_payment",
             },
         )
@@ -398,7 +398,7 @@ async def apply_paid_checkout(session) -> None:
                 logger.error("Ignoring invoice payment with invalid owner metadata")
                 return
             await db.invoices.update_one(
-                {"_id": parse_object_id(invoice_id, "invoice_id"), "user_id": user_id},
+                {"_id": parse_object_id(invoice_id, "invoice_id"), "user_id": parse_object_id(user_id, "user_id")},
                 {"$set": {"status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}}
             )
             await db.payment_transactions.update_one(
