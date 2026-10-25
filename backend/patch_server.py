@@ -393,8 +393,12 @@ async def apply_paid_checkout(session) -> None:
     elif checkout_type == "invoice_payment":
         invoice_id = metadata.get("invoice_id")
         if invoice_id:
+            user_id = metadata.get("user_id")
+            if not user_id or not ObjectId.is_valid(user_id):
+                logger.error("Ignoring invoice payment with invalid owner metadata")
+                return
             await db.invoices.update_one(
-                {"_id": parse_object_id(invoice_id, "invoice_id")},
+                {"_id": parse_object_id(invoice_id, "invoice_id"), "user_id": user_id},
                 {"$set": {"status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}}
             )
             await db.payment_transactions.update_one(
@@ -405,17 +409,26 @@ async def apply_paid_checkout(session) -> None:
 
 
 @api_router.get("/payments/status/{session_id}")
-async def get_payment_status(session_id: str):
+async def get_payment_status(session_id: str, request: Request):
+    # Read-only: only signed Stripe webhooks can apply payments.
+    user = await get_current_user(request)
+    transaction = await db.payment_transactions.find_one(
+        {"session_id": session_id, "user_id": user["_id"]},
+        {"_id": 0, "payment_status": 1, "type": 1}
+    )
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Betaling niet gevonden")
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except stripe.error.StripeError as exc:
         logger.exception("Stripe status error: %s", exc)
         raise HTTPException(status_code=502, detail="Betaalstatus kon niet worden opgehaald")
-
-    if session.payment_status == "paid":
-        await apply_paid_checkout(session)
-
-    return {"status": session.status, "payment_status": session.payment_status}
+    # Never mutate subscriptions or invoices from a browser status poll.
+    return {
+        "status": session.status,
+        "payment_status": transaction.get("payment_status", "pending"),
+        "type": transaction.get("type")
+    }
 
 
 @api_router.post("/stripe/webhook")
