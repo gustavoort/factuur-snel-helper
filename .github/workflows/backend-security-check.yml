@@ -111,7 +111,28 @@ jobs:
               assert exc.status_code == 403
           else:
               raise AssertionError("Past-due subscription unexpectedly retained paid access")
-          print("Free/Pro/Business entitlement checks passed.")
+          origin_node = next(
+              node for node in tree.body
+              if isinstance(node, ast.FunctionDef) and node.name == "request_origin"
+          )
+          class FakeRequest:
+              def __init__(self, origin=None):
+                  self.headers = {"origin": origin} if origin else {}
+          fake_os = type("FakeOS", (), {
+              "environ": {"CORS_ORIGINS": "https://www.faktuvi.nl,https://faktuvi.nl"}
+          })()
+          origin_namespace = {
+              "os": fake_os,
+              "Request": object,
+              "FRONTEND_URL": "https://www.faktuvi.nl",
+          }
+          exec(compile(ast.Module(body=[origin_node], type_ignores=[]), "<origin>", "exec"), origin_namespace)
+          request_origin = origin_namespace["request_origin"]
+          assert request_origin(FakeRequest("https://www.faktuvi.nl")) == "https://www.faktuvi.nl"
+          assert request_origin(FakeRequest("https://faktuvi.nl")) == "https://faktuvi.nl"
+          assert request_origin(FakeRequest("https://attacker.example")) == "https://www.faktuvi.nl"
+          assert request_origin(FakeRequest()) == "https://www.faktuvi.nl"
+          print("Free/Pro/Business entitlement and Stripe return-origin checks passed.")
           PY
 
   frontend-quality:
