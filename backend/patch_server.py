@@ -326,6 +326,17 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
     if plan not in PAID_PLAN_AMOUNTS:
         raise HTTPException(status_code=400, detail="Ongeldig plan. Kies free, pro of business.")
 
+    # Avoid creating a second recurring Stripe subscription for the same account.
+    existing_subscription_id = user.get("stripe_subscription_id")
+    existing_status = str(user.get("subscription_status") or "").lower()
+    if existing_subscription_id and existing_status not in {"canceled", "incomplete_expired", "free"}:
+        if effective_plan(user) == plan and existing_status in ACTIVE_SUBSCRIPTION_STATUSES:
+            return {"url": f"{origin}/billing", "message": "Este plano já está ativo"}
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe um estado de subscrição no Stripe. Cancele ou resolva a subscrição atual antes de iniciar outra.",
+        )
+
     try:
         session_kwargs = {
             "mode": "subscription",
