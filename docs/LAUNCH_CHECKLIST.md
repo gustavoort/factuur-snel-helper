@@ -131,3 +131,12 @@ O projeto não será marcado como pronto enquanto houver qualquer bloqueador aci
 - [x] A auditoria de dependências passou sem vulnerabilidades de severidade alta após atualizar Vite para `8.1.6` e Zod para `4.6.7`; o build e o TypeScript também passaram com estas versões.
 - [ ] Privacidade e termos continuam a necessitar de revisão jurídica antes do lançamento comercial.
 - [ ] **Pagamentos Stripe permanecem deliberadamente para a última etapa**, depois de concluir os restantes testes de segurança e funcionais.
+
+## Estado real dos deployments — 27/10/2026 09:28 UTC
+
+- [x] GitHub `main` está no commit `8ef1a6ce`; o workflow de CI passou: lockfile, auditoria de dependências, build, TypeScript, ESLint global (sem Prettier), verificações de segurança e teste do proprietário do webhook.
+- [x] Railway está `SUCCESS` no commit `8ef1a6ce`. Os logs confirmam arranque da aplicação, criação dos índices, `GET /api/subscription/plans` = 200 e pedidos sem sessão para `/api/auth/me` e `/api/dashboard` = 401.
+- [ ] **Frontend Vercel ainda não está no commit atual.** O deployment de produção associado a `www.faktuvi.nl` continua `READY` no commit `b90caef1`. A tentativa de criar um deployment para o commit atual foi bloqueada pela Vercel com HTTP 402, limite `api-deployments-free-per-day` (mais de 100 deployments no dia; nova tentativa após 24 horas).
+- [ ] Após a reposição do limite da Vercel, publicar o commit `8ef1a6ce` (ou o `main` mais recente) e repetir o smoke test público. Até lá, não afirmar que Vite 8.1.6/Zod 4.6.7 já estão ativos no frontend de produção.
+- [ ] Continuam pendentes os testes de integração autenticados entre duas contas e sessões reais.
+- [ ] O teste E2E Stripe continua deliberadamente reservado para a última etapa.
