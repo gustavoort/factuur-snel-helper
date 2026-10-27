@@ -525,6 +525,24 @@ async def stripe_webhook(request: Request):
 source = source[:stripe_start] + stripe_section + source[stripe_end:]
 
 
+# --- Security hardening: tenant-scope embedded client lookups ---
+# Apply ownership filters to every client join derived from a user's quote/invoice.
+def replace_once(old: str, new: str, label: str) -> None:
+    global source
+    count = source.count(old)
+    if count != 1:
+        raise RuntimeError(f"Expected exactly one match for {label}, found {count}")
+    source = source.replace(old, new, 1)
+
+
+def replace_all_required(old: str, new: str, label: str) -> None:
+    global source
+    count = source.count(old)
+    if count < 1:
+        raise RuntimeError(f"Expected at least one match for {label}, found {count}")
+    source = source.replace(old, new)
+
+
 # --- Enforce subscription entitlements in the backend (not only in the UI) ---
 replace_once(
     '    subscription = user.get("subscription", "free")',
@@ -571,24 +589,6 @@ replace_once(
     '    subscription = effective_plan(user)\n    return {',
     "current subscription effective plan",
 )
-
-# --- Security hardening: tenant-scope embedded client lookups ---
-# Apply ownership filters to every client join derived from a user's quote/invoice.
-def replace_once(old: str, new: str, label: str) -> None:
-    global source
-    count = source.count(old)
-    if count != 1:
-        raise RuntimeError(f"Expected exactly one match for {label}, found {count}")
-    source = source.replace(old, new, 1)
-
-
-def replace_all_required(old: str, new: str, label: str) -> None:
-    global source
-    count = source.count(old)
-    if count < 1:
-        raise RuntimeError(f"Expected at least one match for {label}, found {count}")
-    source = source.replace(old, new)
-
 
 replace_all_required(
     'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"])})',
