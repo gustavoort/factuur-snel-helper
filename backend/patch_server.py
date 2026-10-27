@@ -577,7 +577,25 @@ replace_once(
 )
 def add_pdf_plan_context(doc_type: str, doc_name: str) -> None:
     global source
-    pattern = rf'(?m)^(?P<indent>[ ]*)html_content = generate_pdf_html\("{doc_type}", {doc_name}, company, client_doc\)replace_once(
+    pattern = rf'(?m)^(?P<indent>[ ]*)html_content = generate_pdf_html\\("{doc_type}", {doc_name}, company, client_doc\\)$'
+
+    def add_context(match):
+        indent = match.group("indent")
+        return (
+            f'{indent}company["_plan"] = effective_plan(user)\\n'
+            f'{indent}html_content = generate_pdf_html("{doc_type}", {doc_name}, company, client_doc)'
+        )
+
+    source, count = re.subn(pattern, add_context, source)
+    if count < 1:
+        raise RuntimeError(f"Expected at least one {doc_type} PDF generation call, found {count}")
+
+
+add_pdf_plan_context("quote", "quote_doc")
+add_pdf_plan_context("invoice", "invoice_doc")
+
+
+replace_once(
     '    if company.get("logo_base64"):\n        logo_html = f\'<img src="',
     '    if company.get("_plan") in {"pro", "business"} and company.get("logo_base64"):\n        logo_html = f\'<img src="',
     "PDF logo entitlement",
