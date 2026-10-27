@@ -49,6 +49,7 @@ jobs:
           assert 'require_plan(user, "business")' in source
           assert 'subscription = effective_plan(user)' in source
           assert "Never build Stripe return URLs from an arbitrary Origin header." in source
+          assert "Avoid creating a second recurring Stripe subscription for the same account." in source
           assert "HTML injection hardening" not in source
 
           def function_block(name):
@@ -60,6 +61,8 @@ jobs:
 
           assert 'await enforce_free_monthly_limit(user, db.quotes, "offertes")' in function_block("duplicate_quote")
           assert 'await enforce_free_monthly_limit(user, db.invoices, "facturen")' in function_block("convert_quote_to_invoice")
+          assert "existing_subscription_id = user.get(\"stripe_subscription_id\")" in function_block("create_subscription_checkout")
+          assert "status_code=409" in function_block("create_subscription_checkout")
 
           assert 'require_plan(user, "pro")' in function_block("upload_logo")
           assert 'require_plan(user, "pro")' in function_block("send_quote_email")
