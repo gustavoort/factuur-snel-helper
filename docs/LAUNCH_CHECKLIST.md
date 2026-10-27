@@ -116,3 +116,17 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 ## Regra de conclusão
 
 O projeto não será marcado como pronto enquanto houver qualquer bloqueador acima sem validação ou enquanto a aplicação depender operacionalmente do repositório legado.
+
+## Verificações adicionais antes do teste de pagamentos — 27/10/2026
+
+- [x] O CI executa o build de produção, gera a árvore de rotas tipadas, verifica todos os ficheiros TypeScript com `tsc --noEmit` e aplica ESLint a toda a árvore `src`. A regra de formatação Prettier foi excluída desta verificação global porque já existiam diferenças de formatação em ficheiros antigos; não foram feitas reformatações massivas.
+- [x] Build, TypeScript, lint global (exceto Prettier) e testes de segurança do backend passaram no GitHub Actions, execução [40478957369](https://github.com/gustavoort/factuur-snel-helper/actions/runs/40478957369).
+- [x] Adicionado workflow automático de smoke test de produção: páginas públicas, cabeçalhos de segurança, robots.txt, sitemap XML, preços dos planos e rejeição de pedidos não autenticados em `/api/auth/me` e `/api/dashboard`. Execução [40478033573](https://github.com/gustavoort/factuur-snel-helper/actions/runs/40478033573).
+- [x] O HTML da landing inclui título, descrição, Open Graph, Twitter metadata e canonical para `https://www.faktuvi.nl/`.
+- [x] O backend recebeu proteção adicional para tokens de recuperação de palavra-passe, limites de abuso, escape de conteúdo HTML de PDFs e remoção de fontes remotas no renderizador; foi corrigida e testada a regressão de shadowing do módulo HTML.
+- [x] O deployment Railway mais recente observado em 27/10/2026 está `SUCCESS` no commit `d46587f`; o build executou o Dockerfile e o patch de produção.
+- [x] O utilizador confirmou que cadastro/login/logout, criação/edição de orçamentos e faturas, PDF e envio de documentos estão a funcionar.
+- [ ] Continuam pendentes os testes de integração autenticados entre contas diferentes, validação de refresh de sessão e os fluxos de erro com sessão real.
+- [ ] O lockfile de dependências continua por versionar; a instalação CI passa, mas a árvore de dependências ainda não está fixada por um lockfile no repositório.
+- [ ] Privacidade e termos continuam a necessitar de revisão jurídica antes do lançamento comercial.
+- [ ] **Pagamentos Stripe permanecem deliberadamente para a última etapa**, depois de concluir os restantes testes de segurança e funcionais.
