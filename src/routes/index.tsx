@@ -19,7 +19,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:title", content: "Faktuvi — Offertes en facturen zonder gedoe" },
       { name: "twitter:description", content: description },
     ],
+    links: [{ rel: "canonical", href: "https://www.faktuvi.nl/" }],
   }),
-  links: [{ rel: "canonical", href: "https://www.faktuvi.nl/" }],
   component: LandingPage,
 });
