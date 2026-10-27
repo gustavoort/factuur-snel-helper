@@ -212,9 +212,9 @@ jobs:
           bun-version: latest
       - name: Install frontend dependencies from lockfile
         run: bun install --frozen-lockfile
+      - name: Build frontend and regenerate the typed route tree
+        run: bun run build
       - name: Type-check all frontend TypeScript
         run: bunx tsc --noEmit
       - name: Lint the complete frontend source tree
         run: bunx eslint src
-      - name: Build frontend
-        run: bun run build
