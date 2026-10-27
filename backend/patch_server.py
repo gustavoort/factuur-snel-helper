@@ -571,12 +571,12 @@ replace_once(
 )
 replace_all_required(
     '    html_content = generate_pdf_html("quote", quote_doc, company, client_doc)',
-    '    company["_plan"] = effective_plan(user)\n    html_content = generate_pdf_html("quote", quote_doc, company, client_doc)',
+    'company["_plan"] = effective_plan(user)\n    html_content = generate_pdf_html("quote", quote_doc, company, client_doc)',
     "quote PDF plan context",
 )
 replace_all_required(
     '    html_content = generate_pdf_html("invoice", invoice_doc, company, client_doc)',
-    '    company["_plan"] = effective_plan(user)\n    html_content = generate_pdf_html("invoice", invoice_doc, company, client_doc)',
+    'company["_plan"] = effective_plan(user)\n    html_content = generate_pdf_html("invoice", invoice_doc, company, client_doc)',
     "invoice PDF plan context",
 )
 replace_once(
