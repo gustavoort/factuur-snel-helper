@@ -76,6 +76,16 @@ jobs:
           assert 'require_plan' not in function_block("get_quote"), "Free plan must retain quote access"
           assert 'require_plan' not in function_block("get_invoice"), "Free plan must retain invoice access"
           assert 'company.get("_plan") in {"pro", "business"}' in source
+          assert '"user_id": user["_id"]' in function_block("get_quote")
+          assert '"user_id": user["_id"]' in function_block("get_invoice")
+          assert '"user_id": user["_id"]' in function_block("get_quotes")
+          assert '"user_id": user["_id"]' in function_block("get_invoices")
+          assert '"user_id": user["_id"]' in function_block("update_quote")
+          assert '"user_id": user["_id"]' in function_block("delete_quote")
+          assert '"user_id": user["_id"]' in function_block("update_invoice")
+          assert '"user_id": user["_id"]' in function_block("delete_invoice")
+          assert '"user_id": user["_id"]' in function_block("get_company")
+          assert '"user_id": user["_id"]' in function_block("update_company")
           payment_lib = Path("src/lib/subscription.ts").read_text(encoding="utf-8")
           assert 'transactionStatus === "pending" && failedSession' in payment_lib
           assert '"complete", "completed"' not in payment_lib
