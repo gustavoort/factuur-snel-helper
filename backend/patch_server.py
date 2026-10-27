@@ -219,10 +219,16 @@ ACTIVE_SUBSCRIPTION_STATUSES = {"active", "trialing", "cancel_at_period_end"}
 
 def effective_plan(user: dict) -> str:
     plan = normalize_plan(user.get("subscription", "free"))
-    status = str(user.get("subscription_status") or ("active" if plan != "free" else "free")).lower()
     if plan not in PLAN_RANK:
         return "free"
-    if plan != "free" and status not in ACTIVE_SUBSCRIPTION_STATUSES:
+    if plan == "free":
+        return "free"
+
+    # Paid entitlements must be backed by an explicit active status and a
+    # Stripe subscription ID. Missing or unknown billing state fails closed.
+    status = str(user.get("subscription_status") or "").lower()
+    subscription_id = user.get("stripe_subscription_id")
+    if status not in ACTIVE_SUBSCRIPTION_STATUSES or not subscription_id:
         return "free"
     return plan
 
