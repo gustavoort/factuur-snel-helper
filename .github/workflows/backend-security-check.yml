@@ -11,6 +11,10 @@ on:
       - ".github/workflows/backend-security-check.yml"
       - "src/**"
       - "package.json"
+      - "bun.lock"
+      - "tsconfig.json"
+      - "src/**"
+      - "package.json"
       - "tsconfig.json"
   workflow_dispatch:
 
@@ -73,6 +77,8 @@ jobs:
           assert 'await enforce_free_monthly_limit(user, db.invoices, "facturen")' in function_block("convert_quote_to_invoice")
           assert "existing_subscription_id = user.get(\"stripe_subscription_id\")" in function_block("create_subscription_checkout")
           assert "status_code=409" in function_block("create_subscription_checkout")
+          assert '"user_id": str(user_id)' in function_block("apply_paid_checkout")
+          assert '"user_id": parse_object_id(user_id, "user_id")' not in function_block("apply_paid_checkout")
 
           assert 'require_plan(user, "pro")' in function_block("upload_logo")
           assert 'require_plan(user, "pro")' in function_block("send_quote_email")
@@ -253,6 +259,83 @@ jobs:
           assert request_origin(FakeRequest("https://attacker.example")) == "https://www.faktuvi.nl"
           assert request_origin(FakeRequest()) == "https://www.faktuvi.nl"
           print("Free/Pro/Business entitlement and Stripe return-origin checks passed.")
+          PY
+
+  invoice-payment-owner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build patched backend in isolation
+        run: |
+          mkdir -p /tmp/faktuvi-payment-check
+          cp backend/server.py backend/patch_server.py /tmp/faktuvi-payment-check/
+          cd /tmp/faktuvi-payment-check
+          python patch_server.py
+      - name: Verify invoice payment webhook uses the stored string owner ID
+        run: |
+          python - <<'PY'
+          import ast
+          import asyncio
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("/tmp/faktuvi-payment-check/server.py").read_text(encoding="utf-8")
+          tree = ast.parse(source)
+          node = next(
+              item for item in tree.body
+              if isinstance(item, ast.AsyncFunctionDef) and item.name == "apply_paid_checkout"
+          )
+
+          class FakeCollection:
+              def __init__(self):
+                  self.calls = []
+              async def update_one(self, query, update, **kwargs):
+                  self.calls.append((query, update, kwargs))
+
+          class FakeDB:
+              def __init__(self):
+                  self.invoices = FakeCollection()
+                  self.payment_transactions = FakeCollection()
+
+          class FakeObjectId:
+              @staticmethod
+              def is_valid(value):
+                  return True
+
+          class FakeLogger:
+              def error(self, *args, **kwargs):
+                  raise AssertionError("Unexpected invalid owner metadata")
+
+          db = FakeDB()
+          namespace = {
+              "db": db,
+              "ObjectId": FakeObjectId,
+              "parse_object_id": lambda value, label: f"object:{value}",
+              "datetime": datetime,
+              "timezone": timezone,
+              "logger": FakeLogger(),
+          }
+          exec(compile(ast.Module(body=[node], type_ignores=[]), "<payment>", "exec"), namespace)
+          session = {
+              "id": "cs_test_invoice",
+              "payment_status": "paid",
+              "metadata": {
+                  "type": "invoice_payment",
+                  "invoice_id": "0123456789abcdef01234567",
+                  "user_id": "abcdef0123456789abcdef01",
+              },
+          }
+          asyncio.run(namespace["apply_paid_checkout"](session))
+          assert len(db.invoices.calls) == 1
+          invoice_filter, invoice_update, _ = db.invoices.calls[0]
+          assert invoice_filter["_id"] == "object:0123456789abcdef01234567"
+          assert invoice_filter["user_id"] == "abcdef0123456789abcdef01"
+          assert invoice_update["$set"]["status"] == "paid"
+          assert db.payment_transactions.calls[0][0]["session_id"] == "cs_test_invoice"
+          print("Invoice payment webhook owner filter matches stored string user_id.")
           PY
 
   frontend-quality:
