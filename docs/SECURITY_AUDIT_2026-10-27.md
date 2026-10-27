@@ -29,7 +29,7 @@ A rota de recuperação permitia gerar links repetidamente para a mesma conta, e
 ## Validação do logótipo e HTML de PDF
 A revisão adicional encontrou que o campo `logo_base64` podia ser enviado diretamente ao endpoint de atualização do perfil da empresa, contornando a rota de upload que valida tipo e tamanho do ficheiro. Como o logótipo é inserido no HTML do PDF, um valor arbitrário poderia alterar o markup de saída.
 
-**Correção:** o endpoint de atualização do perfil deixa de aceitar alterações diretas a `logo_base64`; apenas a rota dedicada de upload pode definir esse campo, com tipos de imagem permitidos e limite de 2 MB. A correção tem uma verificação de regressão no CI.
+**Correção:** o endpoint de atualização do perfil deixa de aceitar alterações diretas a `logo_base64`; apenas a rota dedicada de upload pode definir esse campo, com tipos de imagem permitidos e limite de 2 MB. Também são escapados os valores de logótipo já existentes e as datas de validade/vencimento, e foi removido o carregamento de Google Fonts durante a geração do PDF para reduzir dependências externas e latência. A correção tem verificações de regressão no CI.
 
 ## CSRF e cookies de sessão
 A interface de produção chama o backend através do proxy same-origin `/api` do próprio domínio. A configuração anterior emitia cookies de autenticação com `SameSite=None`, permitindo o envio dos cookies em pedidos cross-site. A correção define `SameSite=Lax` para access e refresh tokens, mantendo `HttpOnly` e `Secure` em produção; a configuração foi adicionada ao teste de CI. Esta medida reduz a exposição a CSRF sem exigir cookies cross-site para o fluxo atual.

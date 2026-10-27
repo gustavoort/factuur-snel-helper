@@ -42,6 +42,10 @@ jobs:
           assert "import html" in source
           assert 'html.escape(str(item["description"]), quote=True)' in source
           assert 'html.escape(str(doc["notes"]), quote=True)' in source
+          assert 'html.escape(parse_iso_date(due_date), quote=True)' in source
+          assert 'html.escape(parse_iso_date(valid_until), quote=True)' in source
+          assert 'html.escape(str(company["logo_base64"]), quote=True)' in source
+          assert "fonts.googleapis.com" not in source
           assert "request_origin_value in configured_origins" in source
           assert "def effective_plan(user: dict)" in source
           assert "def require_plan(user: dict, required_plan: str)" in source
