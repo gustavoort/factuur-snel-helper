@@ -6,7 +6,7 @@ path = Path("server.py")
 source = path.read_text(encoding="utf-8")
 
 # Idempotency: each deploy starts from a clean checkout, but keep this safe.
-if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/stripe/webhook")' in source and "html.escape" in source:
+if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/stripe/webhook")' in source and "html.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
     print("server.py already patched")
     raise SystemExit(0)
 
