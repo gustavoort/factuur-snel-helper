@@ -215,3 +215,14 @@ A ordem segura de execução é:
 6. executar build/lint/testes de fluxo;
 7. preparar produção;
 8. por último configurar domínio e Resend.
+
+## Atualização operacional dos deployments — 27/10/2026 09:28 UTC
+
+Esta atualização substitui as referências históricas a deployments anteriores nas secções acima.
+
+- GitHub `main`: commit `8ef1a6ce`. O CI passou com `bun.lock`, `bun audit --audit-level high`, build, `tsc --noEmit`, ESLint global (exceto regra Prettier) e testes de segurança do backend.
+- Railway: deployment `SUCCESS` no commit `8ef1a6ce`. Logs confirmam arranque, criação de índices, endpoint público dos planos com HTTP 200 e endpoints protegidos com HTTP 401 sem sessão.
+- Vercel: o alias de produção `www.faktuvi.nl` ainda aponta para o deployment `READY` do commit `b90caef1`; não há deployment publicado para o `main` mais recente.
+- A tentativa de criar deployment Vercel para o commit `8ef1a6ce` foi recusada com HTTP 402 devido ao limite diário `api-deployments-free-per-day` (mais de 100 deployments no dia; a API indicou esperar 24 horas). Não foi alterada a faturação nem qualquer configuração de plano.
+- Próximo passo operacional: depois de o limite Vercel reiniciar, publicar o `main` mais recente e executar novamente o smoke test de produção. Não considerar a atualização de dependências frontend publicada até isso ocorrer.
+- O checkout Stripe E2E continua deliberadamente para o fim; não foi iniciado nenhum pagamento real nem de teste nesta etapa.
