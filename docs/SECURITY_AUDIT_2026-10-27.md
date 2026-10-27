@@ -40,6 +40,7 @@ O backend precisava de garantir que utilizadores Free não conseguiam usar diret
 - [x] Smoke test do preview Vercel: páginas públicas, `robots.txt`, `sitemap.xml` e `/api/subscription/plans` responderam HTTP 200; os cabeçalhos de segurança estavam presentes.
 - Testar a renderização real do PDF com payloads HTML de prova e confirmar que aparecem como texto, não como markup.
 - Testar isolamento entre duas contas de teste.
+- [x] Testes automatizados para quotas Free, bloqueio de acesso pago sem estado/ID Stripe e bloqueio de checkout duplicado no código.
 - Testar Stripe em modo de teste (checkout, webhook assinado, repetição de evento e cancelamento).
 - Executar testes E2E dos fluxos de clientes, orçamentos, faturas, PDF, e-mail e billing.
 - Rever limites de upload, rate limiting e proteção CSRF, bem como a política de sessão/refresh.
