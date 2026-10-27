@@ -9,6 +9,12 @@ A função `generate_pdf_html` interpolava diretamente campos controláveis por 
 
 **Correção proposta nesta branch:** escapar texto dinâmico com `html.escape(..., quote=True)` na fase de patch do backend, mantendo o formato de saída e a identidade visual. O patch é deliberadamente estrito: falha o build se algum padrão esperado deixar de existir, em vez de aplicar uma correção parcial silenciosa.
 
+## Segunda falha confirmada
+### Origem de retorno do Stripe derivada diretamente do cabeçalho Origin
+A função `request_origin` anterior aceitava qualquer valor com prefixo `http://` ou `https://` e utilizava-o para construir os URLs de sucesso/cancelamento do Stripe. Isso permite que um pedido autenticado influencie o destino de retorno do checkout para um domínio não autorizado.
+
+**Correção proposta nesta branch:** aceitar o cabeçalho `Origin` apenas se corresponder exatamente a uma origem em `CORS_ORIGINS` ou à `FRONTEND_URL` configurada; caso contrário, usar o frontend configurado.
+
 ## Verificações adicionais encontradas
 - A branch `main` não tem proteção de branch ativa segundo os metadados consultados. Recomenda-se ativar proteção e exigir checks antes de permitir merge.
 - A política de password (mínimo 12 caracteres, máximo 128) e os filtros de propriedade para consultas de clientes associados a orçamentos/faturas já são acrescentados por `backend/patch_server.py` durante a imagem Docker; devem continuar cobertos por testes para não depender apenas de transformações de texto.
