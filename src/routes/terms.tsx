@@ -43,9 +43,7 @@ export const Route = createFileRoute("/terms")({
             verandert.
           </p>
         </div>
-        <p className="mt-8 text-sm text-muted-foreground">
-          Laatst bijgewerkt: 14 september 2026.
-        </p>
+        <p className="mt-8 text-sm text-muted-foreground">Laatst bijgewerkt: 14 september 2026.</p>
       </article>
     </main>
   ),
