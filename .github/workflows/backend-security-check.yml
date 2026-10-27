@@ -9,6 +9,9 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/backend-security-check.yml"
+      - "src/**"
+      - "package.json"
+      - "tsconfig.json"
   workflow_dispatch:
 
 jobs:
@@ -261,7 +264,10 @@ jobs:
           bun-version: latest
       - name: Install frontend dependencies from lockfile
         run: bun install --frozen-lockfile
-      - name: Lint frontend
-        run: bunx eslint src/routes/__root.tsx src/routes/privacy.tsx src/routes/terms.tsx src/routes/_authenticated/company.tsx 'src/routes/_authenticated/quotes.$id.index.tsx' 'src/routes/_authenticated/invoices.$id.index.tsx' src/lib/subscription.ts src/routes/_authenticated/payment-success.tsx
-      - name: Build frontend
+      - name: Build frontend and regenerate the typed route tree
         run: bun run build
+      - name: Type-check all frontend TypeScript
+        run: bunx tsc --noEmit
+      - name: Lint the complete frontend source tree
+        run: >-
+          bunx eslint src --rule 'prettier/prettier: off'

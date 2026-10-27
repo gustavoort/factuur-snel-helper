@@ -214,14 +214,14 @@ export function LandingPage() {
           <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-20">
             <div><p className="text-xs font-bold uppercase text-primary">FAQ</p><h2 className="mt-4 text-3xl font-semibold sm:text-5xl">Veelgestelde vragen.</h2></div>
             <Accordion type="single" collapsible>
-              {[
+              {([
                 ["Kan ik Faktuvi gratis gebruiken?", "Ja. Het Free-plan bevat maximaal 5 offertes en 5 facturen per maand."],
                 ["Kan ik offertes omzetten in facturen?", "Ja. Vanuit een offerte kun je een factuur aanmaken zonder alle regels opnieuw in te voeren."],
                 ["Kan ik PDF's downloaden?", "Ja. Offertes en facturen kunnen als PDF worden gedownload."],
                 ["Kan ik documenten per e-mail versturen?", "Ja. E-mailverzending is onderdeel van de betaalde functionaliteit en vereist een correct geconfigureerde e-mailservice."],
                 ["Kan mijn klant online betalen?", "Met het Business-plan kan voor een factuur een Stripe-betaallink worden aangemaakt."],
                 ["Werkt Faktuvi op mobiel?", "Ja. De interface is ontworpen voor zowel desktop als mobiel gebruik."],
-              ].map(([question, answer]) => <AccordionItem key={question} value={question}><AccordionTrigger className="py-6 text-left text-base font-semibold">{question}</AccordionTrigger><AccordionContent className="pb-6 text-base leading-7 text-muted-foreground">{answer}</AccordionContent></AccordionItem>)}
+              ] as const).map(([question, answer]) => <AccordionItem key={question} value={question}><AccordionTrigger className="py-6 text-left text-base font-semibold">{question}</AccordionTrigger><AccordionContent className="pb-6 text-base leading-7 text-muted-foreground">{answer}</AccordionContent></AccordionItem>)}
             </Accordion>
           </div>
         </section>
