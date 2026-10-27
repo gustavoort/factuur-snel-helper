@@ -74,6 +74,9 @@ jobs:
           assert 'success_url": f"{origin}/payment-success?session_id={{CHECKOUT_SESSION_ID}}' in source
           assert 'company.pop("logo_base64", None)' in function_block("get_company")
           assert 'company_data.pop("logo_base64", None)' in function_block("update_company")
+          assert 'if effective_plan(user) == "free"' not in function_block("update_company")
+          assert "ALLOWED_LOGO_CONTENT_TYPES" in function_block("upload_logo")
+          assert "MAX_LOGO_SIZE_BYTES" in function_block("upload_logo")
           assert 'require_plan' not in function_block("get_quote"), "Free plan must retain quote access"
           assert 'require_plan' not in function_block("get_invoice"), "Free plan must retain invoice access"
           assert 'company.get("_plan") in {"pro", "business"}' in source
