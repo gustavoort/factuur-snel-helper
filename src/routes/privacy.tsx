@@ -33,9 +33,7 @@ export const Route = createFileRoute("/privacy")({
           toepasselijke wetgeving dat toestaat. Deze pagina wordt bijgewerkt wanneer leveranciers,
           functies of wettelijke vereisten veranderen.
         </p>
-        <p className="mt-8 text-sm text-muted-foreground">
-          Laatst bijgewerkt: 14 september 2026.
-        </p>
+        <p className="mt-8 text-sm text-muted-foreground">Laatst bijgewerkt: 14 september 2026.</p>
       </article>
     </main>
   ),
