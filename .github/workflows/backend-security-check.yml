@@ -35,6 +35,8 @@ jobs:
           assert "import html" in source
           assert 'html.escape(str(item["description"]), quote=True)' in source
           assert 'html.escape(str(doc["notes"]), quote=True)' in source
+          assert "request_origin_value in configured_origins" in source
+          assert "Never build Stripe return URLs from an arbitrary Origin header." in source
           assert "HTML injection hardening" not in source
           print("Patch output contains HTML escaping and compiles successfully.")
           PY
