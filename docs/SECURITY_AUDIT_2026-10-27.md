@@ -27,6 +27,16 @@ O backend precisava de garantir que utilizadores Free não conseguiam usar diret
 - Removida a dependência de uma folha de estilos de fonte externa; o site usa uma pilha de fontes do sistema.
 - Adicionados cabeçalhos HTTP de segurança: HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy e Permissions-Policy.
 
+## Falhas adicionais identificadas na validação posterior
+### Limites mensais do Free contornáveis
+As rotas diretas de criação tinham limite mensal, mas a duplicação de orçamentos e a conversão de orçamento em fatura não repetiam a verificação. A correção adiciona a mesma verificação do plano efetivo nessas rotas, com teste automatizado de contagem 4/5 e exceção para planos pagos.
+
+### Checkout recorrente duplicado
+A rota de checkout podia criar outra subscrição recorrente para uma conta que já tinha uma subscrição associada. A correção impede novo checkout enquanto o estado anterior não estiver resolvido, e devolve a faturação quando o plano já está ativo.
+
+### Estado de cancelamento
+O webhook de atualização de subscrição agora preserva o estado de cancelamento no final do período, mantendo as permissões até a subscrição efetivamente terminar.
+
 ## Verificações adicionais encontradas
 - A branch `main` não tem proteção de branch ativa segundo os metadados consultados. Recomenda-se ativar proteção e exigir checks antes de permitir merge.
 - A política de password (mínimo 12 caracteres, máximo 128) e os filtros de propriedade para consultas de clientes associados a orçamentos/faturas já são acrescentados por `backend/patch_server.py` durante a imagem Docker; devem continuar cobertos por testes para não depender apenas de transformações de texto.
@@ -40,6 +50,7 @@ O backend precisava de garantir que utilizadores Free não conseguiam usar diret
 - [x] Smoke test do preview Vercel: páginas públicas, `robots.txt`, `sitemap.xml` e `/api/subscription/plans` responderam HTTP 200; os cabeçalhos de segurança estavam presentes.
 - Testar a renderização real do PDF com payloads HTML de prova e confirmar que aparecem como texto, não como markup.
 - Testar isolamento entre duas contas de teste.
+- [x] CI adicional para contornar limites Free por duplicação/conversão e evitar checkout recorrente duplicado.
 - Testar Stripe em modo de teste (checkout, webhook assinado, repetição de evento e cancelamento).
 - Executar testes E2E dos fluxos de clientes, orçamentos, faturas, PDF, e-mail e billing.
 - Rever limites de upload, rate limiting e proteção CSRF, bem como a política de sessão/refresh.

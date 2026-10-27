@@ -242,6 +242,23 @@ def require_plan(user: dict, required_plan: str) -> None:
         )
 
 
+async def enforce_free_monthly_limit(user: dict, collection, document_label: str) -> None:
+    if effective_plan(user) != "free":
+        return
+    month_start = datetime.now(timezone.utc).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    count = await collection.count_documents({
+        "user_id": user["_id"],
+        "created_at": {"$gte": month_start.isoformat()},
+    })
+    if count >= 5:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Limiet bereikt. Upgrade naar Pro voor onbeperkte {document_label}.",
+        )
+
+
 def normalize_plan(value: str) -> str:
     normalized = (value or "").strip().lower()
     return PLAN_ALIASES.get(normalized, normalized)
@@ -308,6 +325,17 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
 
     if plan not in PAID_PLAN_AMOUNTS:
         raise HTTPException(status_code=400, detail="Ongeldig plan. Kies free, pro of business.")
+
+    # Avoid creating a second recurring Stripe subscription for the same account.
+    existing_subscription_id = user.get("stripe_subscription_id")
+    existing_status = str(user.get("subscription_status") or "").lower()
+    if existing_subscription_id and existing_status not in {"canceled", "incomplete_expired", "free"}:
+        if effective_plan(user) == plan and existing_status in ACTIVE_SUBSCRIPTION_STATUSES:
+            return {"url": f"{origin}/billing", "message": "Este plano já está ativo"}
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe um estado de subscrição no Stripe. Cancele ou resolva a subscrição atual antes de iniciar outra.",
+        )
 
     try:
         session_kwargs = {
@@ -502,7 +530,7 @@ async def stripe_webhook(request: Request):
         plan = normalize_plan(metadata.get("plan", ""))
         if user_id:
             update = {
-                "subscription_status": obj.get("status", "unknown"),
+                "subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),
                 "stripe_subscription_id": obj.get("id"),
                 "stripe_customer_id": obj.get("customer"),
                 "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
@@ -549,6 +577,18 @@ def replace_all_required(old: str, new: str, label: str) -> None:
         raise RuntimeError(f"Expected at least one match for {label}, found {count}")
     source = source.replace(old, new)
 
+
+# Close Free quota bypasses through duplicate and quote-conversion endpoints.
+replace_once(
+    'async def duplicate_quote(quote_id: str, request: Request):\n    user = await get_current_user(request)\n',
+    'async def duplicate_quote(quote_id: str, request: Request):\n    user = await get_current_user(request)\n    await enforce_free_monthly_limit(user, db.quotes, "offertes")\n',
+    "duplicate quote monthly quota",
+)
+replace_once(
+    'async def convert_quote_to_invoice(quote_id: str, request: Request):\n    user = await get_current_user(request)\n',
+    'async def convert_quote_to_invoice(quote_id: str, request: Request):\n    user = await get_current_user(request)\n    await enforce_free_monthly_limit(user, db.invoices, "facturen")\n',
+    "quote conversion invoice monthly quota",
+)
 
 # --- Enforce subscription entitlements in the backend (not only in the UI) ---
 replace_all_required(
