@@ -1,0 +1,93 @@
+name: Production smoke checks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 7 * * *"
+  push:
+    branches:
+      - "main"
+      - "audit/prelaunch-quality-v2-2026-10-27"
+    paths:
+      - ".github/workflows/production-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  public-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check public pages, security headers, sitemap, and unauthenticated API behavior
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+          import xml.etree.ElementTree as ET
+
+          BASE = "https://www.faktuvi.nl"
+
+          def get(path):
+              request = urllib.request.Request(
+                  BASE + path,
+                  headers={"User-Agent": "Faktuvi-Production-Smoke/1.0"},
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=15) as response:
+                      return response.status, response.headers, response.read()
+              except urllib.error.HTTPError as exc:
+                  return exc.code, exc.headers, exc.read()
+
+          for path in ("/", "/login", "/register", "/privacy", "/terms"):
+              status, _, body = get(path)
+              assert status == 200, f"{path}: expected HTTP 200, got {status}"
+              assert b"<html" in body.lower(), f"{path}: response is not HTML"
+              print(f"PASS {path}: HTTP {status}")
+
+          status, headers, _ = get("/")
+          for name in (
+              "strict-transport-security",
+              "x-content-type-options",
+              "x-frame-options",
+              "referrer-policy",
+              "permissions-policy",
+          ):
+              assert headers.get(name), f"Missing security header: {name}"
+          print("PASS homepage security headers")
+
+          status, _, robots = get("/robots.txt")
+          assert status == 200, f"/robots.txt: HTTP {status}"
+          assert b"Sitemap: https://www.faktuvi.nl/sitemap.xml" in robots
+          for private_path in (b"/dashboard", b"/clients", b"/quotes", b"/invoices", b"/billing"):
+              assert b"Disallow: " + private_path in robots, f"robots.txt missing {private_path!r}"
+          print("PASS robots.txt")
+
+          status, _, sitemap = get("/sitemap.xml")
+          assert status == 200, f"/sitemap.xml: HTTP {status}"
+          root = ET.fromstring(sitemap)
+          ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+          urls = [node.text for node in root.findall("sm:url/sm:loc", ns)]
+          assert urls, "Sitemap contains no URLs"
+          assert all(url and url.startswith(BASE) for url in urls), urls
+          assert all(url.startswith("https://") for url in urls), urls
+          print(f"PASS sitemap.xml ({len(urls)} URLs)")
+
+          status, _, plans_body = get("/api/subscription/plans")
+          assert status == 200, f"/api/subscription/plans: HTTP {status}"
+          plans = json.loads(plans_body)
+          assert {"free", "pro", "business"}.issubset(plans), f"Unexpected plans: {list(plans)}"
+          assert float(plans["free"]["price"]) == 0
+          assert float(plans["pro"]["price"]) > 0
+          assert float(plans["business"]["price"]) > float(plans["pro"]["price"])
+          print("PASS public subscription plans API")
+
+          for path in ("/api/auth/me", "/api/dashboard"):
+              status, _, _ = get(path)
+              assert status == 401, f"{path}: expected HTTP 401 without a session, got {status}"
+              print(f"PASS {path}: unauthorized request rejected (HTTP 401)")
+
+          print("All public production smoke checks passed. No payment or checkout was initiated.")
+          PY
