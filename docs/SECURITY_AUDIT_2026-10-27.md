@@ -21,7 +21,7 @@ A função `request_origin` anterior aceitava qualquer valor com prefixo `http:/
 - Os fluxos reais autenticados e de pagamento não foram exercitados nesta etapa. Não foi feita nenhuma escrita na base de dados de produção.
 
 ## Validação pendente
-- Executar o workflow de verificação do patch e compilação Python.
+- [x] Workflow GitHub Actions executado com sucesso: compilação do backend original e do backend após aplicar o patch, mais verificações estáticas de escaping HTML e allowlist de origens.
 - Testar a renderização com payloads HTML de prova e confirmar que aparecem como texto, não como markup.
 - Testar isolamento entre duas contas de teste.
 - Testar Stripe em modo de teste (checkout, webhook assinado, repetição de evento e cancelamento).
@@ -30,4 +30,4 @@ A função `request_origin` anterior aceitava qualquer valor com prefixo `http:/
 - Só propor merge/deploy depois de os checks passarem e os testes funcionais serem confirmados.
 
 ## Estado
-Esta branch é uma proposta de correção, ainda não aprovada nem implantada em produção.
+O check automatizado do patch passou em 2026-10-27. Os testes são estáticos/compilação; não substituem a renderização real do PDF, os testes E2E ou a validação Stripe. Esta branch é uma proposta de correção, ainda não aprovada nem implantada em produção.
