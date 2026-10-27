@@ -50,6 +50,7 @@ jobs:
           assert 'subscription = effective_plan(user)' in source
           assert "Never build Stripe return URLs from an arbitrary Origin header." in source
           assert "Avoid creating a second recurring Stripe subscription for the same account." in source
+          assert '"subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),' in source
           assert "HTML injection hardening" not in source
 
           def function_block(name):
