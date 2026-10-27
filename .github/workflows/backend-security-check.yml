@@ -36,7 +36,61 @@ jobs:
           assert 'html.escape(str(item["description"]), quote=True)' in source
           assert 'html.escape(str(doc["notes"]), quote=True)' in source
           assert "request_origin_value in configured_origins" in source
+          assert "def effective_plan(user: dict)" in source
+          assert "def require_plan(user: dict, required_plan: str)" in source
+          assert 'require_plan(user, "pro")' in source
+          assert 'require_plan(user, "business")' in source
+          assert 'subscription = effective_plan(user)' in source
           assert "Never build Stripe return URLs from an arbitrary Origin header." in source
           assert "HTML injection hardening" not in source
           print("Patch output contains HTML escaping and compiles successfully.")
+          PY
+
+      - name: Test subscription entitlement rules
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          source = Path("/tmp/faktuvi-backend-check/server.py").read_text(encoding="utf-8")
+          tree = ast.parse(source)
+          wanted = {"normalize_plan", "effective_plan", "require_plan"}
+          nodes = [
+              node for node in tree.body
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in wanted
+          ]
+          assignments = [
+              node for node in tree.body
+              if isinstance(node, ast.Assign)
+              and any(isinstance(target, ast.Name) and target.id in {"PLAN_RANK", "ACTIVE_SUBSCRIPTION_STATUSES"} for target in node.targets)
+          ]
+          assert {node.name for node in nodes} == wanted, "Entitlement functions missing"
+          class HTTPException(Exception):
+              def __init__(self, status_code, detail):
+                  self.status_code = status_code
+                  self.detail = detail
+          namespace = {"HTTPException": HTTPException}
+          exec(compile(ast.Module(body=assignments + nodes, type_ignores=[]), "<entitlements>", "exec"), namespace)
+          effective_plan = namespace["effective_plan"]
+          require_plan = namespace["require_plan"]
+          assert effective_plan({"subscription": "free"}) == "free"
+          assert effective_plan({"subscription": "pro", "subscription_status": "active"}) == "pro"
+          assert effective_plan({"subscription": "business", "subscription_status": "active"}) == "business"
+          assert effective_plan({"subscription": "pro", "subscription_status": "cancel_at_period_end"}) == "pro"
+          assert effective_plan({"subscription": "pro", "subscription_status": "past_due"}) == "free"
+          assert effective_plan({"subscription": "business", "subscription_status": "canceled"}) == "free"
+          require_plan({"subscription": "pro", "subscription_status": "active"}, "pro")
+          try:
+              require_plan({"subscription": "free"}, "pro")
+          except HTTPException as exc:
+              assert exc.status_code == 403
+          else:
+              raise AssertionError("Free plan unexpectedly received Pro access")
+          try:
+              require_plan({"subscription": "pro", "subscription_status": "past_due"}, "business")
+          except HTTPException as exc:
+              assert exc.status_code == 403
+          else:
+              raise AssertionError("Past-due subscription unexpectedly retained paid access")
+          print("Free/Pro/Business entitlement checks passed.")
           PY
