@@ -214,7 +214,7 @@ export function LandingPage() {
           <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-20">
             <div><p className="text-xs font-bold uppercase text-primary">FAQ</p><h2 className="mt-4 text-3xl font-semibold sm:text-5xl">Veelgestelde vragen.</h2></div>
             <Accordion type="single" collapsible>
-              {[
+              {([
                 ["Kan ik Faktuvi gratis gebruiken?", "Ja. Het Free-plan bevat maximaal 5 offertes en 5 facturen per maand."],
                 ["Kan ik offertes omzetten in facturen?", "Ja. Vanuit een offerte kun je een factuur aanmaken zonder alle regels opnieuw in te voeren."],
                 ["Kan ik PDF's downloaden?", "Ja. Offertes en facturen kunnen als PDF worden gedownload."],
