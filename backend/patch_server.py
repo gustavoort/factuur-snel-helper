@@ -6,7 +6,7 @@ path = Path("server.py")
 source = path.read_text(encoding="utf-8")
 
 # Idempotency: each deploy starts from a clean checkout, but keep this safe.
-if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/stripe/webhook")' in source and "html.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
+if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/stripe/webhook")' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
     print("server.py already patched")
     raise SystemExit(0)
 
@@ -14,8 +14,8 @@ if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/
 if "import httpx\n" not in source:
     source = source.replace("import stripe\n", "import stripe\nimport httpx\n", 1)
 
-if "import html\n" not in source:
-    source = source.replace("import stripe\n", "import stripe\nimport html\n", 1)
+if "import html as html_lib\n" not in source:
+    source = source.replace("import stripe\n", "import stripe\nimport html as html_lib\n", 1)
 
 old_env = '''STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 if not STRIPE_SECRET_KEY:
@@ -762,25 +762,25 @@ def replace_html_value(old: str, new: str, label: str) -> None:
     source = source.replace(old, new)
 
 
-replace_html_value('{item["description"]}', '{html.escape(str(item["description"]), quote=True)}', "line item description")
-replace_html_value('{doc["notes"]}', '{html.escape(str(doc["notes"]), quote=True)}', "document notes")
-replace_html_value('{company.get("company_name", "")}', '{html.escape(str(company.get("company_name", "")), quote=True)}', "company name")
-replace_html_value('{company.get("address", "")}', '{html.escape(str(company.get("address", "")), quote=True)}', "company address")
-replace_html_value('{company.get("postal_code", "")}', '{html.escape(str(company.get("postal_code", "")), quote=True)}', "company postal code")
-replace_html_value('{company.get("city", "")}', '{html.escape(str(company.get("city", "")), quote=True)}', "company city")
-replace_html_value('{company.get("kvk_number", "")}', '{html.escape(str(company.get("kvk_number", "")), quote=True)}', "company KvK")
-replace_html_value('{company.get("btw_number", "")}', '{html.escape(str(company.get("btw_number", "")), quote=True)}', "company VAT number")
-replace_html_value('{company.get("iban", "")}', '{html.escape(str(company.get("iban", "")), quote=True)}', "company IBAN")
-replace_html_value('{client_doc.get("company_name") or client_doc.get("name", "")}', '{html.escape(str(client_doc.get("company_name") or client_doc.get("name", "")), quote=True)}', "client company/name")
-replace_html_value('{client_doc.get("name", "")}', '{html.escape(str(client_doc.get("name", "")), quote=True)}', "client name")
-replace_html_value('{client_doc.get("address", "")}', '{html.escape(str(client_doc.get("address", "")), quote=True)}', "client address")
-replace_html_value('{client_doc.get("postal_code", "")}', '{html.escape(str(client_doc.get("postal_code", "")), quote=True)}', "client postal code")
-replace_html_value('{client_doc.get("city", "")}', '{html.escape(str(client_doc.get("city", "")), quote=True)}', "client city")
-replace_html_value('{doc_number}', '{html.escape(str(doc_number or ""), quote=True)}', "document number")
-replace_html_value('{date_str}', '{html.escape(str(date_str), quote=True)}', "document date")
-replace_html_value('{parse_iso_date(due_date)}', '{html.escape(parse_iso_date(due_date), quote=True)}', "invoice due date")
-replace_html_value('{parse_iso_date(valid_until)}', '{html.escape(parse_iso_date(valid_until), quote=True)}', "quote validity date")
-replace_html_value('{company["logo_base64"]}', '{html.escape(str(company["logo_base64"]), quote=True)}', "logo data URI")
+replace_html_value('{item["description"]}', '{html_lib.escape(str(item["description"]), quote=True)}', "line item description")
+replace_html_value('{doc["notes"]}', '{html_lib.escape(str(doc["notes"]), quote=True)}', "document notes")
+replace_html_value('{company.get("company_name", "")}', '{html_lib.escape(str(company.get("company_name", "")), quote=True)}', "company name")
+replace_html_value('{company.get("address", "")}', '{html_lib.escape(str(company.get("address", "")), quote=True)}', "company address")
+replace_html_value('{company.get("postal_code", "")}', '{html_lib.escape(str(company.get("postal_code", "")), quote=True)}', "company postal code")
+replace_html_value('{company.get("city", "")}', '{html_lib.escape(str(company.get("city", "")), quote=True)}', "company city")
+replace_html_value('{company.get("kvk_number", "")}', '{html_lib.escape(str(company.get("kvk_number", "")), quote=True)}', "company KvK")
+replace_html_value('{company.get("btw_number", "")}', '{html_lib.escape(str(company.get("btw_number", "")), quote=True)}', "company VAT number")
+replace_html_value('{company.get("iban", "")}', '{html_lib.escape(str(company.get("iban", "")), quote=True)}', "company IBAN")
+replace_html_value('{client_doc.get("company_name") or client_doc.get("name", "")}', '{html_lib.escape(str(client_doc.get("company_name") or client_doc.get("name", "")), quote=True)}', "client company/name")
+replace_html_value('{client_doc.get("name", "")}', '{html_lib.escape(str(client_doc.get("name", "")), quote=True)}', "client name")
+replace_html_value('{client_doc.get("address", "")}', '{html_lib.escape(str(client_doc.get("address", "")), quote=True)}', "client address")
+replace_html_value('{client_doc.get("postal_code", "")}', '{html_lib.escape(str(client_doc.get("postal_code", "")), quote=True)}', "client postal code")
+replace_html_value('{client_doc.get("city", "")}', '{html_lib.escape(str(client_doc.get("city", "")), quote=True)}', "client city")
+replace_html_value('{doc_number}', '{html_lib.escape(str(doc_number or ""), quote=True)}', "document number")
+replace_html_value('{date_str}', '{html_lib.escape(str(date_str), quote=True)}', "document date")
+replace_html_value('{parse_iso_date(due_date)}', '{html_lib.escape(parse_iso_date(due_date), quote=True)}', "invoice due date")
+replace_html_value('{parse_iso_date(valid_until)}', '{html_lib.escape(parse_iso_date(valid_until), quote=True)}', "quote validity date")
+replace_html_value('{company["logo_base64"]}', '{html_lib.escape(str(company["logo_base64"]), quote=True)}', "logo data URI")
 
 replace_once(
     "            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');",
@@ -790,10 +790,10 @@ replace_once(
 
 
 # Escape names and identifiers interpolated into transactional email HTML.
-replace_html_value("{client_doc.get('name', '')}", "{html.escape(str(client_doc.get('name', '')), quote=True)}", "email client name")
-replace_html_value("{company_name}", "{html.escape(str(company_name), quote=True)}", "email company name")
-replace_html_value("{quote_number}</strong>", "{html.escape(str(quote_number), quote=True)}</strong>", "email quote number")
-replace_html_value("{invoice_number}</strong>", "{html.escape(str(invoice_number), quote=True)}</strong>", "email invoice number")
+replace_html_value("{client_doc.get('name', '')}", "{html_lib.escape(str(client_doc.get('name', '')), quote=True)}", "email client name")
+replace_html_value("{company_name}", "{html_lib.escape(str(company_name), quote=True)}", "email company name")
+replace_html_value("{quote_number}</strong>", "{html_lib.escape(str(quote_number), quote=True)}</strong>", "email quote number")
+replace_html_value("{invoice_number}</strong>", "{html_lib.escape(str(invoice_number), quote=True)}</strong>", "email invoice number")
 
 path.write_text(source, encoding="utf-8")
 print("server.py patched: real email + recurring Stripe billing + webhook")
