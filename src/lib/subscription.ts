@@ -92,10 +92,17 @@ export interface PaymentStatus {
 export async function getPaymentStatus(sessionId: string): Promise<PaymentStatus> {
   const { data } = await api.get<unknown>(`/payments/status/${encodeURIComponent(sessionId)}`);
   const response = asRecord(data) ?? {};
-  const status = text(response["status"] ?? response["payment_status"]).toLowerCase();
+  const transactionStatus = text(response["payment_status"]).toLowerCase();
+  const sessionStatus = text(response["status"]).toLowerCase();
+  const failedSession = ["failed", "canceled", "cancelled", "expired"].includes(sessionStatus);
+  const status =
+    transactionStatus === "pending" && failedSession
+      ? sessionStatus
+      : transactionStatus || sessionStatus;
+  // A Checkout Session marked "complete" is not enough: the signed webhook
+  // must first mark our user-owned transaction as paid.
   const paid =
-    response["paid"] === true ||
-    ["paid", "complete", "completed", "succeeded", "active"].includes(status);
+    response["paid"] === true || ["paid", "active", "succeeded"].includes(transactionStatus);
   return { status, paid, message: text(response["message"]) };
 }
 
