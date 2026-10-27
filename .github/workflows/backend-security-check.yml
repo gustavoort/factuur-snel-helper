@@ -45,8 +45,6 @@ jobs:
           assert "def effective_plan(user: dict)" in source
           assert "def require_plan(user: dict, required_plan: str)" in source
           assert "async def enforce_free_monthly_limit(user: dict, collection, document_label: str)" in source
-          assert "await enforce_free_monthly_limit(user, db.quotes, \"offertes\")" in function_block("duplicate_quote")
-          assert "await enforce_free_monthly_limit(user, db.invoices, \"facturen\")" in function_block("convert_quote_to_invoice")
           assert 'require_plan(user, "pro")' in source
           assert 'require_plan(user, "business")' in source
           assert 'subscription = effective_plan(user)' in source
@@ -59,6 +57,9 @@ jobs:
                   if isinstance(node, ast.AsyncFunctionDef) and node.name == name
               )
               return ast.get_source_segment(source, node)
+
+          assert 'await enforce_free_monthly_limit(user, db.quotes, "offertes")' in function_block("duplicate_quote")
+          assert 'await enforce_free_monthly_limit(user, db.invoices, "facturen")' in function_block("convert_quote_to_invoice")
 
           assert 'require_plan(user, "pro")' in function_block("upload_logo")
           assert 'require_plan(user, "pro")' in function_block("send_quote_email")
