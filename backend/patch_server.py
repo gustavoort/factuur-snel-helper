@@ -555,6 +555,11 @@ replace_once(
     "business payment-link entitlement",
 )
 replace_once(
+    'async def update_company(data: CompanyProfile, request: Request):\n    user = await get_current_user(request)\n    company_data = data.model_dump()',
+    'async def update_company(data: CompanyProfile, request: Request):\n    user = await get_current_user(request)\n    company_data = data.model_dump()\n    if effective_plan(user) == "free":\n        company_data.pop("logo_base64", None)',
+    "company profile logo entitlement",
+)
+replace_once(
     'async def upload_logo(request: Request, file: UploadFile = File(...)):\n    user = await get_current_user(request)\n',
     'async def upload_logo(request: Request, file: UploadFile = File(...)):\n    user = await get_current_user(request)\n    require_plan(user, "pro")\n',
     "logo upload entitlement",
