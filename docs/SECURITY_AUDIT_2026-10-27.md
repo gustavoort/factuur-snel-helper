@@ -77,3 +77,13 @@ O webhook de atualização de subscrição agora preserva o estado de cancelamen
 
 ## Limitações restantes
 O checkout Stripe autenticado, o webhook com assinatura real, os eventos duplicados, o isolamento de duas contas e a renderização PDF com payloads maliciosos não foram exercitados ponta a ponta por uma sessão de teste autenticada. Os checks de CI cobrem a lógica de entitlement e a transformação/compilação do backend, mas não substituem esses testes integrados. Não declarar esses cenários como validados até haver evidência.
+
+## Atualização de pré-lançamento — 27/10/2026
+
+- [x] O repositório agora contém `bun.lock`; o CI instala com `bun install --frozen-lockfile`, tornando a resolução de dependências reproduzível.
+- [x] `bun audit --audit-level high` identificou duas vulnerabilidades altas no Vite 8.1.5 e Zod 3.25.76. Atualizados para Vite 8.1.6 e Zod 4.6.7; a auditoria subsequente passou sem vulnerabilidades altas. Avisos originais: [GHSA-587h-7wmj-h5pm](https://github.com/advisories/GHSA-587h-7wmj-h5pm) e [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5).
+- [x] Build de produção, `tsc --noEmit` e ESLint em toda a árvore `src` passaram com as versões corrigidas. A regra Prettier foi excluída do lint global para evitar uma reformatação extensa de código legado; não se considera a formatação validada.
+- [x] Teste executável do renderizador PDF usa descrições, notas, datas e conteúdo malicioso de prova para verificar o escape HTML.
+- [x] Corrigido o filtro de propriedade do webhook de pagamento de faturas para comparar o `user_id` no formato realmente guardado na base de dados; existe um teste automatizado isolado para este cenário. Isto valida lógica de código, não substitui o teste E2E de pagamento.
+- [x] O workflow de smoke test de produção verifica páginas públicas, cabeçalhos de segurança, sitemap/robots, planos e rejeição de pedidos sem sessão; não inicia pagamentos.
+- [ ] Permanecem pendentes os testes autenticados entre duas contas, sessões reais e cenários de erro. O teste E2E Stripe continua deliberadamente reservado para a última etapa.
