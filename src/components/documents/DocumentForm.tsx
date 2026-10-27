@@ -66,15 +66,15 @@ const buildSchema = (t: Translate, requireClient: boolean) =>
       .array(
         z.object({
           description: z.string().trim().min(1, t("validation.descriptionRequired")),
-          quantity: z.coerce.number().gt(0, t("validation.quantityPositive")),
-          unit_price: z.coerce.number().min(0, t("validation.priceNonNegative")),
-          vat_rate: z.coerce.number().min(0).max(100),
+          quantity: z.coerce.number<number>().gt(0, t("validation.quantityPositive")),
+          unit_price: z.coerce.number<number>().min(0, t("validation.priceNonNegative")),
+          vat_rate: z.coerce.number<number>().min(0).max(100),
         }),
       )
       .min(1, t("validation.atLeastOneLine")),
     notes: z.string(),
     validity_days: z.coerce
-      .number()
+      .number<number>()
       .int(t("validation.validityInt"))
       .min(1, t("validation.validityMin"))
       .max(365, t("validation.validityMax")),
