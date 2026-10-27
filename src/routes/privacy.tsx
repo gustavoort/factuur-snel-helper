@@ -1,6 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/privacy")({
+  head: () => ({
+    meta: [
+      { title: "Privacyverklaring — Faktuvi" },
+      {
+        name: "description",
+        content: "Lees hoe Faktuvi persoonsgegevens verwerkt, beschermt en bewaart bij het gebruik van offertes, facturen en klantbeheer.",
+      },
+      { name: "robots", content: "index, follow" },
+      { property: "og:title", content: "Privacyverklaring — Faktuvi" },
+      {
+        property: "og:description",
+        content: "Informatie over persoonsgegevens en privacy bij Faktuvi.",
+      },
+    ],
+    links: [{ rel: "canonical", href: "https://www.faktuvi.nl/privacy" }],
+  }),
   component: () => (
     <main className="min-h-screen bg-background px-5 py-16 text-foreground">
       <article className="mx-auto max-w-3xl">
