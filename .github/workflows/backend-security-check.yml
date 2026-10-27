@@ -96,3 +96,17 @@ jobs:
               raise AssertionError("Past-due subscription unexpectedly retained paid access")
           print("Free/Pro/Business entitlement checks passed.")
           PY
+
+  frontend-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install frontend dependencies from lockfile
+        run: bun install --frozen-lockfile
+      - name: Lint frontend
+        run: bun run lint
+      - name: Build frontend
+        run: bun run build
