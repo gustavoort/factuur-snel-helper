@@ -242,6 +242,23 @@ def require_plan(user: dict, required_plan: str) -> None:
         )
 
 
+async def enforce_free_monthly_limit(user: dict, collection, document_label: str) -> None:
+    if effective_plan(user) != "free":
+        return
+    month_start = datetime.now(timezone.utc).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    count = await collection.count_documents({
+        "user_id": user["_id"],
+        "created_at": {"$gte": month_start.isoformat()},
+    })
+    if count >= 5:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Limiet bereikt. Upgrade naar Pro voor onbeperkte {document_label}.",
+        )
+
+
 def normalize_plan(value: str) -> str:
     normalized = (value or "").strip().lower()
     return PLAN_ALIASES.get(normalized, normalized)
@@ -549,6 +566,18 @@ def replace_all_required(old: str, new: str, label: str) -> None:
         raise RuntimeError(f"Expected at least one match for {label}, found {count}")
     source = source.replace(old, new)
 
+
+# Close Free quota bypasses through duplicate and quote-conversion endpoints.
+replace_once(
+    'async def duplicate_quote(quote_id: str, request: Request):\n    user = await get_current_user(request)\n',
+    'async def duplicate_quote(quote_id: str, request: Request):\n    user = await get_current_user(request)\n    await enforce_free_monthly_limit(user, db.quotes, "offertes")\n',
+    "duplicate quote monthly quota",
+)
+replace_once(
+    'async def convert_quote_to_invoice(quote_id: str, request: Request):\n    user = await get_current_user(request)\n',
+    'async def convert_quote_to_invoice(quote_id: str, request: Request):\n    user = await get_current_user(request)\n    await enforce_free_monthly_limit(user, db.invoices, "facturen")\n',
+    "quote conversion invoice monthly quota",
+)
 
 # --- Enforce subscription entitlements in the backend (not only in the UI) ---
 replace_all_required(
