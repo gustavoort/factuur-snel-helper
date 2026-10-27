@@ -107,6 +107,69 @@ if old_reset not in source:
     raise RuntimeError("Mock password-reset block not found")
 source = source.replace(old_reset, new_reset, 1)
 
+# --- Password reset abuse protection: cap active reset links per account ---
+old_reset_limit = '''    if not user:
+        return {"message": "Als dit e-mailadres bestaat, ontvangt u een reset link"}
+
+    token = secrets.token_urlsafe(32)'''
+new_reset_limit = '''    if not user:
+        return {"message": "Als dit e-mailadres bestaat, ontvangt u een reset link"}
+
+    now = datetime.now(timezone.utc)
+    active_reset_count = await db.password_reset_tokens.count_documents({
+        "user_id": str(user["_id"]),
+        "used": False,
+        "expires_at": {"$gte": now},
+    })
+    if active_reset_count >= 3:
+        return {"message": "Als dit e-mailadres bestaat, ontvangt u een reset link"}
+
+    token = secrets.token_urlsafe(32)'''
+if old_reset_limit not in source:
+    raise RuntimeError("Password reset rate-limit insertion point not found")
+source = source.replace(old_reset_limit, new_reset_limit, 1)
+
+# --- Password reset token: atomic single-use consumption ---
+old_reset_consume = '''    reset = await db.password_reset_tokens.find_one({"token": data.token, "used": False})
+    if not reset:
+        raise HTTPException(status_code=400, detail="Ongeldige of verlopen token")
+
+    expires_at = reset["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Token is verlopen")'''
+new_reset_consume = '''    reset = await db.password_reset_tokens.find_one_and_update(
+        {"token": data.token, "used": False},
+        {"$set": {"used": True, "used_at": datetime.now(timezone.utc)}},
+        return_document=ReturnDocument.BEFORE,
+    )
+    if not reset:
+        raise HTTPException(status_code=400, detail="Ongeldige of verlopen token")
+
+    expires_at = reset["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    else:
+        expires_at = expires_at.astimezone(timezone.utc)
+    if expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Token is verlopen")'''
+if old_reset_consume not in source:
+    raise RuntimeError("Password reset consume block not found")
+source = source.replace(old_reset_consume, new_reset_consume, 1)
+
+old_mark_used = '''    await db.password_reset_tokens.update_one(
+        {"token": data.token},
+        {"$set": {"used": True}}
+    )
+
+'''
+if old_mark_used not in source:
+    raise RuntimeError("Password reset used-token update not found")
+source = source.replace(old_mark_used, "", 1)
+
 # --- Replace mocked quote/invoice email routes ---
 email_start = source.index("# ============ EMAIL (MOCKED) ============")
 email_end = source.index("# ============ WHATSAPP SHARING ============", email_start)
