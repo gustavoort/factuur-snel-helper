@@ -21,6 +21,11 @@ O backend precisava de garantir que utilizadores Free não conseguiam usar diret
 
 **Correção implementada nesta branch:** controlo de plano no backend, mantendo limites Free de 5 orçamentos e 5 faturas por mês, acesso ao envio de e-mail e logótipo apenas para Pro/Business, e links Stripe apenas para Business. A interface apresenta uma opção de upgrade nos pontos premium. O logótipo não é devolvido nem renderizado no plano Free.
 
+## Proteção do fluxo de recuperação de palavra-passe
+A rota de recuperação permitia gerar links repetidamente para a mesma conta, e a utilização do token era marcada em uma segunda operação após a leitura, deixando uma pequena janela para duas requisições concorrentes reutilizarem o mesmo token.
+
+**Correção:** limitar a três links de recuperação ativos por conta e consumir cada token atomicamente antes de alterar a palavra-passe, com verificação explícita de expiração e normalização UTC. A resposta de limite continua genérica para não revelar a existência da conta. O CI verifica estas proteções no backend gerado.
+
 ## Validação do logótipo e HTML de PDF
 A revisão adicional encontrou que o campo `logo_base64` podia ser enviado diretamente ao endpoint de atualização do perfil da empresa, contornando a rota de upload que valida tipo e tamanho do ficheiro. Como o logótipo é inserido no HTML do PDF, um valor arbitrário poderia alterar o markup de saída.
 
