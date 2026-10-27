@@ -312,7 +312,7 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
     try:
         session_kwargs = {
             "mode": "subscription",
-            "success_url": f"{origin}/billing?session_id={{CHECKOUT_SESSION_ID}}",
+            "success_url": f"{origin}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
             "cancel_url": f"{origin}/billing",
             "line_items": [
                 {
