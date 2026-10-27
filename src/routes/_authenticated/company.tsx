@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Upload, Trash2 } from "lucide-react";
 import { getApiErrorMessage, isApiConfigured } from "@/lib/api";
+import { currentSubscriptionQueryOptions } from "@/lib/subscription";
 import {
   companyQueryOptions,
   emptyCompany,
@@ -86,6 +87,12 @@ function CompanyPage() {
     enabled: isApiConfigured,
     retry: false,
   });
+  const subscription = useQuery({
+    ...currentSubscriptionQueryOptions(),
+    enabled: isApiConfigured,
+    retry: false,
+  });
+  const canUploadLogo = ["pro", "business"].includes(subscription.data?.plan.toLowerCase() ?? "");
 
   return (
     <>
@@ -105,13 +112,13 @@ function CompanyPage() {
       {isApiConfigured && isPending ? (
         <Skeleton className="h-96 w-full" />
       ) : (
-        <CompanyEditor profile={data ?? emptyCompany} />
+        <CompanyEditor profile={data ?? emptyCompany} canUploadLogo={canUploadLogo} />
       )}
     </>
   );
 }
 
-function CompanyEditor({ profile }: { profile: CompanyProfile }) {
+function CompanyEditor({ profile, canUploadLogo }: { profile: CompanyProfile; canUploadLogo: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -170,15 +177,24 @@ function CompanyEditor({ profile }: { profile: CompanyProfile }) {
             </div>
           )}
           <div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={upload.isPending}
-              onClick={() => fileInput.current?.click()}
-            >
-              <Upload className="h-4 w-4" />
-              {upload.isPending ? t("company.logoUploading") : t("company.logoUpload")}
-            </Button>
+            {canUploadLogo ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={upload.isPending}
+                onClick={() => fileInput.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                {upload.isPending ? t("company.logoUploading") : t("company.logoUpload")}
+              </Button>
+            ) : (
+              <Button asChild variant="outline">
+                <Link to="/billing">
+                  <Upload className="h-4 w-4" />
+                  {t("billing.upgrade")}
+                </Link>
+              </Button>
+            )}
             {profile.logo_base64 ? (
               <Button
                 type="button"
