@@ -13,6 +13,9 @@ if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/
 if "import httpx\n" not in source:
     source = source.replace("import stripe\n", "import stripe\nimport httpx\n", 1)
 
+if "import html\n" not in source:
+    source = source.replace("import stripe\n", "import stripe\nimport html\n", 1)
+
 old_env = '''STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 if not STRIPE_SECRET_KEY:
     raise RuntimeError("STRIPE_SECRET_KEY não configurada")
