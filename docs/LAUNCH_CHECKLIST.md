@@ -127,6 +127,7 @@ O projeto não será marcado como pronto enquanto houver qualquer bloqueador aci
 - [x] O deployment Railway mais recente observado em 27/10/2026 está `SUCCESS` no commit `d46587f`; o build executou o Dockerfile e o patch de produção.
 - [x] O utilizador confirmou que cadastro/login/logout, criação/edição de orçamentos e faturas, PDF e envio de documentos estão a funcionar.
 - [ ] Continuam pendentes os testes de integração autenticados entre contas diferentes, validação de refresh de sessão e os fluxos de erro com sessão real.
-- [ ] O lockfile de dependências continua por versionar; a instalação CI passa, mas a árvore de dependências ainda não está fixada por um lockfile no repositório.
+- [x] O lockfile `bun.lock` está versionado e a instalação usa `bun install --frozen-lockfile`.
+- [x] A auditoria de dependências passou sem vulnerabilidades de severidade alta após atualizar Vite para `8.1.6` e Zod para `4.6.7`; o build e o TypeScript também passaram com estas versões.
 - [ ] Privacidade e termos continuam a necessitar de revisão jurídica antes do lançamento comercial.
 - [ ] **Pagamentos Stripe permanecem deliberadamente para a última etapa**, depois de concluir os restantes testes de segurança e funcionais.
