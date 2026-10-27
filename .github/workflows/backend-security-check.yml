@@ -26,6 +26,7 @@ jobs:
           cp backend/server.py backend/patch_server.py /tmp/faktuvi-backend-check/
           cd /tmp/faktuvi-backend-check
           python patch_server.py
+          nl -ba server.py | sed -n '1205,1220p'
           python -m py_compile server.py patch_server.py
       - name: Assert HTML escaping is present in patched backend
         run: |
