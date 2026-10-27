@@ -1,7 +1,7 @@
 # Faktuvi — auditoria de segurança inicial (2026-10-27)
 
 ## Âmbito
-Revisão estática do backend oficial `gustavoort/factuur-snel-helper`, branch de trabalho `audit/security-hardening-2026-10-27`. Nenhuma alteração foi feita na branch `main`, Vercel ou Railway de produção.
+Revisão do backend oficial `gustavoort/factuur-snel-helper`, inicialmente conduzida na branch `audit/security-hardening-2026-10-27`. No início da auditoria não foram alteradas a branch `main`, a base de dados ou a infraestrutura de produção.
 
 ## Falha confirmada
 ### HTML inserido sem escape na geração de PDFs
@@ -43,7 +43,13 @@ O backend precisava de garantir que utilizadores Free não conseguiam usar diret
 - Testar Stripe em modo de teste (checkout, webhook assinado, repetição de evento e cancelamento).
 - Executar testes E2E dos fluxos de clientes, orçamentos, faturas, PDF, e-mail e billing.
 - Rever limites de upload, rate limiting e proteção CSRF, bem como a política de sessão/refresh.
-- Só propor merge/deploy depois de os checks passarem e os testes funcionais serem confirmados.
+## Validação pós-deploy — 2026-10-27
+- Pull request #4 integrado na `main`; produção não foi alterada antes de os checks de compilação, lint e build passarem.
+- Vercel: deployment de produção READY no commit `8e733ad6aa0da4e3bd7f6f04438f3238d71aa283`.
+- Railway: deployment SUCCESS no mesmo commit; logs mostram arranque da aplicação e criação dos índices da base de dados.
+- Smoke tests de produção: homepage, Privacy, Terms, `robots.txt`, `sitemap.xml` e `/api/subscription/plans` responderam HTTP 200. O endpoint de planos confirmou Free/Pro/Business; os cabeçalhos HSTS, nosniff e X-Frame-Options foram observados.
+- A homepage passou a emitir canonical para `https://www.faktuvi.nl/`; as páginas Privacy e Terms também têm canonical e metadados.
+- Os pedidos sem sessão a endpoints protegidos retornaram 401, comportamento esperado.
 
-## Estado
-Os checks automatizados passaram na branch de auditoria em 2026-10-27. A validação real de checkout/webhook Stripe, o teste de isolamento com duas contas e a renderização PDF ainda dependem de testes autenticados/integração. Não afirmar estes fluxos como testados até haver evidência. A branch ainda precisa de merge e verificação pós-deploy.
+## Limitações restantes
+O checkout Stripe autenticado, o webhook com assinatura real, os eventos duplicados, o isolamento de duas contas e a renderização PDF com payloads maliciosos não foram exercitados ponta a ponta por uma sessão de teste autenticada. Os checks de CI cobrem a lógica de entitlement e a transformação/compilação do backend, mas não substituem esses testes integrados. Não declarar esses cenários como validados até haver evidência.
