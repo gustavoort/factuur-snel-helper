@@ -70,11 +70,11 @@ const buildSchema = (t: Translate) =>
     btw_number: z.string(),
     iban: z.string(),
     payment_terms: z.coerce
-      .number({ message: t("validation.numberInvalid") })
+      .number<number>({ message: t("validation.numberInvalid") })
       .min(0)
       .max(365),
     default_vat_rate: z.coerce
-      .number({ message: t("validation.numberInvalid") })
+      .number<number>({ message: t("validation.numberInvalid") })
       .min(0)
       .max(100),
   });
