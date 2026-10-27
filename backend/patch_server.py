@@ -577,12 +577,12 @@ replace_once(
 )
 def add_pdf_plan_context(doc_type: str, doc_name: str) -> None:
     global source
-    pattern = rf'(?m)^(?P<indent>[ ]*)html_content = generate_pdf_html\\("{doc_type}", {doc_name}, company, client_doc\\)$'
+    pattern = rf'(?m)^(?P<indent>[ ]*)html_content = generate_pdf_html\("{doc_type}", {doc_name}, company, client_doc\)$'
 
     def add_context(match):
         indent = match.group("indent")
         return (
-            f'{indent}company["_plan"] = effective_plan(user)\\n'
+            f'{indent}company["_plan"] = effective_plan(user)\n'
             f'{indent}html_content = generate_pdf_html("{doc_type}", {doc_name}, company, client_doc)'
         )
 
