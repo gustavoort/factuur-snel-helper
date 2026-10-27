@@ -592,8 +592,8 @@ replace_once(
 
 # --- CSRF hardening: the frontend calls the API through same-origin /api proxy ---
 replace_once(
-    'def get_cookie_samesite() -> str:\\n    return "none" if IS_PRODUCTION else "lax"',
-    'def get_cookie_samesite() -> str:\\n    # Same-origin /api proxy makes cross-site cookies unnecessary; Lax blocks cross-site POSTs.\\n    return "lax"',
+    'def get_cookie_samesite() -> str:\n    return "none" if IS_PRODUCTION else "lax"',
+    'def get_cookie_samesite() -> str:\n    # Same-origin /api proxy makes cross-site cookies unnecessary; Lax blocks cross-site POSTs.\n    return "lax"',
     "same-site cookie CSRF hardening",
 )
 
