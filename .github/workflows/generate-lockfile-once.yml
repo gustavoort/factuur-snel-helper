@@ -1,0 +1,32 @@
+name: Regenerate dependency lockfile once
+
+on:
+  push:
+    branches:
+      - "audit/dependency-audit-2026-10-27"
+    paths:
+      - ".github/workflows/generate-lockfile-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  generate-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/dependency-audit-2026-10-27
+          persist-credentials: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Regenerate and commit the Bun lockfile
+        run: |
+          bun install --lockfile-only
+          test -s bun.lock
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bun.lock
+          git commit -m "Update lockfile for patched dependencies"
+          git push origin HEAD:audit/dependency-audit-2026-10-27
