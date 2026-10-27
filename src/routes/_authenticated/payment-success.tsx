@@ -54,7 +54,11 @@ function PaymentSuccessPage() {
   }, [status.data?.paid, queryClient]);
 
   const paid = status.data?.paid === true;
-  const failed = status.isError || ["failed", "canceled", "cancelled", "expired"].includes(status.data?.status.toLowerCase() ?? "");
+  const failed =
+    status.isError ||
+    ["failed", "canceled", "cancelled", "expired"].includes(
+      status.data?.status.toLowerCase() ?? "",
+    );
 
   return (
     <>
