@@ -107,6 +107,6 @@ jobs:
       - name: Install frontend dependencies from lockfile
         run: bun install --frozen-lockfile
       - name: Lint frontend
-        run: bunx eslint src/routes/__root.tsx src/routes/privacy.tsx src/routes/terms.tsx
+        run: bunx eslint src/routes/__root.tsx src/routes/privacy.tsx src/routes/terms.tsx src/routes/_authenticated/company.tsx 'src/routes/_authenticated/quotes.$id.index.tsx' 'src/routes/_authenticated/invoices.$id.index.tsx'
       - name: Build frontend
         run: bun run build
