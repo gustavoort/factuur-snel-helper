@@ -26,8 +26,6 @@ jobs:
           cp backend/server.py backend/patch_server.py /tmp/faktuvi-backend-check/
           cd /tmp/faktuvi-backend-check
           python patch_server.py
-          nl -ba server.py | sed -n '1205,1220p'
-          nl -ba server.py | sed -n '1513,1528p'
           python -m py_compile server.py patch_server.py
       - name: Assert HTML escaping is present in patched backend
         run: |
@@ -45,7 +43,22 @@ jobs:
           assert 'subscription = effective_plan(user)' in source
           assert "Never build Stripe return URLs from an arbitrary Origin header." in source
           assert "HTML injection hardening" not in source
-          print("Patch output contains HTML escaping and compiles successfully.")
+
+          def function_block(name):
+              start = source.index(f"async def {name}(")
+              end = source.find("\\n@api_router.", start)
+              return source[start:] if end < 0 else source[start:end]
+
+          assert 'require_plan(user, "pro")' in function_block("upload_logo")
+          assert 'require_plan(user, "pro")' in function_block("send_quote_email")
+          assert 'require_plan(user, "pro")' in function_block("send_invoice_email")
+          assert 'require_plan(user, "business")' in function_block("create_invoice_payment_link")
+          assert 'company.pop("logo_base64", None)' in function_block("get_company")
+          assert 'company_data.pop("logo_base64", None)' in function_block("update_company")
+          assert 'require_plan' not in function_block("get_quote"), "Free plan must retain quote access"
+          assert 'require_plan' not in function_block("get_invoice"), "Free plan must retain invoice access"
+          assert 'company.get("_plan") in {"pro", "business"}' in source
+          print("HTML escaping, allowed origins, and route-level plan gates verified.")
           PY
 
       - name: Test subscription entitlement rules
