@@ -9,3 +9,5 @@ Disallow: /billing
 Disallow: /payment-success
 Disallow: /forgot-password
 Disallow: /reset-password
+
+Sitemap: https://www.faktuvi.nl/sitemap.xml
