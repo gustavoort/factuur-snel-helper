@@ -530,7 +530,7 @@ async def stripe_webhook(request: Request):
         plan = normalize_plan(metadata.get("plan", ""))
         if user_id:
             update = {
-                "subscription_status": obj.get("status", "unknown"),
+                "subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),
                 "stripe_subscription_id": obj.get("id"),
                 "stripe_customer_id": obj.get("customer"),
                 "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
