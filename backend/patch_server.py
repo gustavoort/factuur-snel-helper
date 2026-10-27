@@ -212,6 +212,28 @@ SUBSCRIPTION_PLANS = {
 PAID_PLAN_AMOUNTS = {"pro": 999, "business": 2499}
 PLAN_ALIASES = {"gratis": "free", "free": "free", "pro": "pro", "business": "business"}
 
+PLAN_RANK = {"free": 0, "pro": 1, "business": 2}
+ACTIVE_SUBSCRIPTION_STATUSES = {"active", "trialing", "cancel_at_period_end"}
+
+
+def effective_plan(user: dict) -> str:
+    plan = normalize_plan(user.get("subscription", "free"))
+    status = str(user.get("subscription_status") or ("active" if plan != "free" else "free")).lower()
+    if plan not in PLAN_RANK:
+        return "free"
+    if plan != "free" and status not in ACTIVE_SUBSCRIPTION_STATUSES:
+        return "free"
+    return plan
+
+
+def require_plan(user: dict, required_plan: str) -> None:
+    current = effective_plan(user)
+    if PLAN_RANK.get(current, 0) < PLAN_RANK[required_plan]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Deze functie vereist het {required_plan.capitalize()}-abonnement.",
+        )
+
 
 def normalize_plan(value: str) -> str:
     normalized = (value or "").strip().lower()
@@ -501,6 +523,54 @@ async def stripe_webhook(request: Request):
 
 '''
 source = source[:stripe_start] + stripe_section + source[stripe_end:]
+
+
+# --- Enforce subscription entitlements in the backend (not only in the UI) ---
+replace_once(
+    '    subscription = user.get("subscription", "free")',
+    '    subscription = effective_plan(user)',
+    "effective subscription plan",
+)
+replace_once(
+    '    if user.get("subscription") != "business":',
+    '    require_plan(user, "business")',
+    "business payment-link entitlement",
+)
+replace_once(
+    'async def upload_logo(request: Request, file: UploadFile = File(...)):\n    user = await get_current_user(request)\n',
+    'async def upload_logo(request: Request, file: UploadFile = File(...)):\n    user = await get_current_user(request)\n    require_plan(user, "pro")\n',
+    "logo upload entitlement",
+)
+replace_all_required(
+    '    user = await get_current_user(request)\n    quote_obj_id = parse_object_id(quote_id, "quote_id")',
+    '    user = await get_current_user(request)\n    require_plan(user, "pro")\n    quote_obj_id = parse_object_id(quote_id, "quote_id")',
+    "quote email entitlement",
+)
+replace_all_required(
+    '    user = await get_current_user(request)\n    invoice_obj_id = parse_object_id(invoice_id, "invoice_id")\n    invoice_doc = await db.invoices.find_one',
+    '    user = await get_current_user(request)\n    require_plan(user, "pro")\n    invoice_obj_id = parse_object_id(invoice_id, "invoice_id")\n    invoice_doc = await db.invoices.find_one',
+    "invoice email entitlement",
+)
+replace_all_required(
+    '    html_content = generate_pdf_html("quote", quote_doc, company, client_doc)',
+    '    company["_plan"] = effective_plan(user)\n    html_content = generate_pdf_html("quote", quote_doc, company, client_doc)',
+    "quote PDF plan context",
+)
+replace_all_required(
+    '    html_content = generate_pdf_html("invoice", invoice_doc, company, client_doc)',
+    '    company["_plan"] = effective_plan(user)\n    html_content = generate_pdf_html("invoice", invoice_doc, company, client_doc)',
+    "invoice PDF plan context",
+)
+replace_once(
+    '    if company.get("logo_base64"):\n        logo_html = f\'<img src="',
+    '    if company.get("_plan") in {"pro", "business"} and company.get("logo_base64"):\n        logo_html = f\'<img src="',
+    "PDF logo entitlement",
+)
+replace_once(
+    '    subscription = user.get("subscription", "free")\n    return {',
+    '    subscription = effective_plan(user)\n    return {',
+    "current subscription effective plan",
+)
 
 # --- Security hardening: tenant-scope embedded client lookups ---
 # Apply ownership filters to every client join derived from a user's quote/invoice.
