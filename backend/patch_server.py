@@ -556,6 +556,11 @@ replace_once(
     "business payment-link entitlement",
 )
 replace_once(
+    'async def get_company(request: Request):\n    user = await get_current_user(request)\n    company = await db.companies.find_one({"user_id": user["_id"]}, {"_id": 0})\n    if not company:\n        company = {"user_id": user["_id"]}\n    return company',
+    'async def get_company(request: Request):\n    user = await get_current_user(request)\n    company = await db.companies.find_one({"user_id": user["_id"]}, {"_id": 0})\n    if not company:\n        company = {"user_id": user["_id"]}\n    if effective_plan(user) == "free":\n        company.pop("logo_base64", None)\n    return company',
+    "hide premium logo from Free plan profile response",
+)
+replace_once(
     'async def update_company(data: CompanyProfile, request: Request):\n    user = await get_current_user(request)\n    company_data = data.model_dump()',
     'async def update_company(data: CompanyProfile, request: Request):\n    user = await get_current_user(request)\n    company_data = data.model_dump()\n    if effective_plan(user) == "free":\n        company_data.pop("logo_base64", None)',
     "company profile logo entitlement",
