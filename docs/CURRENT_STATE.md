@@ -142,22 +142,22 @@ A seleção de idioma é persistida e aplicada ao `lang` do documento após hidr
 
 Existe tratamento global de erro no root, mensagens de API traduzidas e um wrapper server-side para converter falhas SSR catastróficas em uma página HTML de erro.
 
-Há, porém, código específico de Lovable no fluxo de reporting de erros que precisa ser substituído antes da independência completa da plataforma.
+A pesquisa atual do código não encontrou dependências nem referências runtime ao Lovable; as ocorrências restantes são referências históricas na documentação.
 
 ## 11. Remoção do Lovable e segurança de dependências
 
 - `vite.config.ts` usa configuração nativa Vite + TanStack Start + Nitro + React + Tailwind + `vite-tsconfig-paths`; já não importa `@lovable.dev/vite-tanstack-config`.
 - A dependência de configuração do Lovable, o reporting de erros específico, os metadados `.lovable/` e as instruções antigas do Lovable foram removidos.
 - O deployment de produção do Vercel foi corrigido no commit `36c50ce`: `@tanstack/react-start` está fixado em `1.168.61`, versão corrigida para CVE-2026-102989, e o deployment está `READY`.
-- O `bun.lock` antigo foi removido porque fixava a versão vulnerável `1.168.32`. O build de produção atual usa `npm install` e passa, mas ainda é necessário gerar e commitar um `package-lock.json` validado para tornar a resolução das dependências reproduzível.
+- O `bun.lock` está versionado e o CI usa `bun install --frozen-lockfile`. A auditoria `bun audit --audit-level high` passou depois de atualizar Vite para `8.1.6` e Zod para `4.6.7`; build, TypeScript e ESLint global (sem a regra de formatação Prettier) também passaram.
 - O domínio `faktuvi.nl` está verificado no Resend; os registos DNS foram adicionados na Hostinger. O utilizador confirmou teste real bem-sucedido de recuperação de palavra-passe e envio de fatura por e-mail. As variáveis `RESEND_API_KEY` e `EMAIL_FROM` estão configuradas no Railway.
 
 ## 12. Arquivos/configurações que exigem atenção antes do lançamento
 
-- Gerar e versionar `package-lock.json` com a árvore de dependências corrigida; não voltar a introduzir a versão vulnerável fixada no antigo `bun.lock`.
-- Finalizar metadata global, canonical e Open Graph com o domínio definitivo.
-- Confirmar sitemap; não foi identificado um sitemap na árvore auditada.
-- Não foi identificada uma suíte automatizada completa de testes de frontend.
+- Manter `bun.lock` sincronizado com `package.json`; o CI agora falha se houver vulnerabilidades de dependência de severidade alta.
+- [x] Metadata da homepage, canonical e Open Graph usam o domínio definitivo `https://www.faktuvi.nl/`.
+- [x] `robots.txt` e `sitemap.xml` estão publicados e verificados pelo smoke test.
+- Existe CI para build, TypeScript, ESLint global e smoke tests públicos; ainda falta E2E autenticado completo entre contas.
 - Privacidade e termos ainda devem passar por revisão jurídica antes do lançamento comercial definitivo.
 - O envio transacional de e-mail (recuperação de palavra-passe e fatura) foi testado manualmente pelo utilizador e funcionou em produção. Outros fluxos continuam por testar.
 
