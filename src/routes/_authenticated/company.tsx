@@ -118,7 +118,13 @@ function CompanyPage() {
   );
 }
 
-function CompanyEditor({ profile, canUploadLogo }: { profile: CompanyProfile; canUploadLogo: boolean }) {
+function CompanyEditor({
+  profile,
+  canUploadLogo,
+}: {
+  profile: CompanyProfile;
+  canUploadLogo: boolean;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
