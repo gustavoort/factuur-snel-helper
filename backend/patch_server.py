@@ -551,7 +551,7 @@ replace_all_required(
     "effective subscription plan",
 )
 replace_once(
-    '    if user.get("subscription") != "business":',
+    '    if user.get("subscription") != "business":\n        raise HTTPException(status_code=403, detail="Business nodig")',
     '    require_plan(user, "business")',
     "business payment-link entitlement",
 )
