@@ -264,6 +264,8 @@ jobs:
           bun-version: latest
       - name: Install frontend dependencies from lockfile
         run: bun install --frozen-lockfile
+      - name: Audit resolved frontend dependencies
+        run: bun audit --audit-level high
       - name: Build frontend and regenerate the typed route tree
         run: bun run build
       - name: Type-check all frontend TypeScript
