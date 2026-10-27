@@ -52,12 +52,13 @@ jobs:
           assert 'require_plan(user, "business")' in source
           assert 'subscription = effective_plan(user)' in source
           assert "Never build Stripe return URLs from an arbitrary Origin header." in source
+          assert "Same-origin /api proxy makes cross-site cookies unnecessary; Lax blocks cross-site POSTs." in source
           assert "HTML injection hardening" not in source
 
           def function_block(name):
               node = next(
                   node for node in parsed.body
-                  if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+                  if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)) and node.name == name
               )
               return ast.get_source_segment(source, node)
 
@@ -86,6 +87,8 @@ jobs:
           assert '"user_id": user["_id"]' in function_block("delete_invoice")
           assert '"user_id": user["_id"]' in function_block("get_company")
           assert '"user_id": user["_id"]' in function_block("update_company")
+          assert 'return "lax"' in function_block("get_cookie_samesite")
+          assert 'return "none" if IS_PRODUCTION else "lax"' not in function_block("get_cookie_samesite")
           payment_lib = Path("src/lib/subscription.ts").read_text(encoding="utf-8")
           assert 'transactionStatus === "pending" && failedSession' in payment_lib
           assert '"complete", "completed"' not in payment_lib
