@@ -21,6 +21,11 @@ O backend precisava de garantir que utilizadores Free não conseguiam usar diret
 
 **Correção implementada nesta branch:** controlo de plano no backend, mantendo limites Free de 5 orçamentos e 5 faturas por mês, acesso ao envio de e-mail e logótipo apenas para Pro/Business, e links Stripe apenas para Business. A interface apresenta uma opção de upgrade nos pontos premium. O logótipo não é devolvido nem renderizado no plano Free.
 
+## Confirmação do pagamento de faturas
+A validação do webhook encontrou uma incompatibilidade de tipos: os documentos guardam `user_id` como string, mas a confirmação do pagamento procurava a fatura usando um ObjectId para esse campo. O webhook podia marcar a transação como paga sem atualizar o estado da fatura.
+
+**Correção:** a procura da fatura usa o `user_id` string validado do metadata Stripe, mantendo o filtro pelo ID da fatura e o dono. Foi adicionado um teste executável com uma base de dados simulada para verificar que o webhook atualiza a fatura correta e não atravessa contas.
+
 ## Proteção do fluxo de recuperação de palavra-passe
 A rota de recuperação permitia gerar links repetidamente para a mesma conta, e a utilização do token era marcada em uma segunda operação após a leitura, deixando uma pequena janela para duas requisições concorrentes reutilizarem o mesmo token.
 
