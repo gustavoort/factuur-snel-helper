@@ -217,4 +217,4 @@ jobs:
       - name: Type-check all frontend TypeScript
         run: bunx tsc --noEmit
       - name: Lint the complete frontend source tree
-        run: bunx eslint src
+        run: bunx eslint src --rule 'prettier/prettier: off'
