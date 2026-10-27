@@ -219,10 +219,20 @@ def normalize_plan(value: str) -> str:
 
 
 def request_origin(request: Request) -> str:
-    origin = (request.headers.get("origin") or FRONTEND_URL or "http://localhost:3000").rstrip("/")
-    if not (origin.startswith("https://") or origin.startswith("http://")):
-        return FRONTEND_URL
-    return origin
+    # Never build Stripe return URLs from an arbitrary Origin header.
+    configured_frontend = (FRONTEND_URL or "").rstrip("/")
+    configured_origins = {
+        value.strip().rstrip("/")
+        for value in os.environ.get("CORS_ORIGINS", "").split(",")
+        if value.strip()
+    }
+    if configured_frontend:
+        configured_origins.add(configured_frontend)
+
+    request_origin_value = (request.headers.get("origin") or "").rstrip("/")
+    if request_origin_value in configured_origins:
+        return request_origin_value
+    return configured_frontend
 
 
 @api_router.get("/subscription/plans")
