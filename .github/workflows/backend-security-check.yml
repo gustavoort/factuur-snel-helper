@@ -97,12 +97,14 @@ jobs:
           effective_plan = namespace["effective_plan"]
           require_plan = namespace["require_plan"]
           assert effective_plan({"subscription": "free"}) == "free"
-          assert effective_plan({"subscription": "pro", "subscription_status": "active"}) == "pro"
-          assert effective_plan({"subscription": "business", "subscription_status": "active"}) == "business"
-          assert effective_plan({"subscription": "pro", "subscription_status": "cancel_at_period_end"}) == "pro"
+          assert effective_plan({"subscription": "pro", "subscription_status": "active", "stripe_subscription_id": "sub_test_pro"}) == "pro"
+          assert effective_plan({"subscription": "business", "subscription_status": "active", "stripe_subscription_id": "sub_test_business"}) == "business"
+          assert effective_plan({"subscription": "pro", "subscription_status": "cancel_at_period_end", "stripe_subscription_id": "sub_test_pro"}) == "pro"
+          assert effective_plan({"subscription": "pro", "subscription_status": "active"}) == "free"
+          assert effective_plan({"subscription": "pro", "stripe_subscription_id": "sub_test_pro"}) == "free"
           assert effective_plan({"subscription": "pro", "subscription_status": "past_due"}) == "free"
           assert effective_plan({"subscription": "business", "subscription_status": "canceled"}) == "free"
-          require_plan({"subscription": "pro", "subscription_status": "active"}, "pro")
+          require_plan({"subscription": "pro", "subscription_status": "active", "stripe_subscription_id": "sub_test_pro"}, "pro")
           try:
               require_plan({"subscription": "free"}, "pro")
           except HTTPException as exc:
@@ -110,7 +112,7 @@ jobs:
           else:
               raise AssertionError("Free plan unexpectedly received Pro access")
           try:
-              require_plan({"subscription": "pro", "subscription_status": "past_due"}, "business")
+              require_plan({"subscription": "pro", "subscription_status": "past_due", "stripe_subscription_id": "sub_test_pro"}, "business")
           except HTTPException as exc:
               assert exc.status_code == 403
           else:
