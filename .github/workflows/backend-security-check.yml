@@ -30,8 +30,10 @@ jobs:
       - name: Assert HTML escaping is present in patched backend
         run: |
           python - <<'PY'
+          import ast
           from pathlib import Path
           source = Path("/tmp/faktuvi-backend-check/server.py").read_text(encoding="utf-8")
+          parsed = ast.parse(source)
           assert "import html" in source
           assert 'html.escape(str(item["description"]), quote=True)' in source
           assert 'html.escape(str(doc["notes"]), quote=True)' in source
@@ -45,9 +47,11 @@ jobs:
           assert "HTML injection hardening" not in source
 
           def function_block(name):
-              start = source.index(f"async def {name}(")
-              end = source.find("\\n@api_router.", start)
-              return source[start:] if end < 0 else source[start:end]
+              node = next(
+                  node for node in parsed.body
+                  if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+              )
+              return ast.get_source_segment(source, node)
 
           assert 'require_plan(user, "pro")' in function_block("upload_logo")
           assert 'require_plan(user, "pro")' in function_block("send_quote_email")
