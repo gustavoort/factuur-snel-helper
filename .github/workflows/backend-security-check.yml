@@ -42,12 +42,12 @@ jobs:
           from pathlib import Path
           source = Path("/tmp/faktuvi-backend-check/server.py").read_text(encoding="utf-8")
           parsed = ast.parse(source)
-          assert "import html" in source
-          assert 'html.escape(str(item["description"]), quote=True)' in source
-          assert 'html.escape(str(doc["notes"]), quote=True)' in source
-          assert 'html.escape(parse_iso_date(due_date), quote=True)' in source
-          assert 'html.escape(parse_iso_date(valid_until), quote=True)' in source
-          assert 'html.escape(str(company["logo_base64"]), quote=True)' in source
+          assert "import html as html_lib" in source
+          assert 'html_lib.escape(str(item["description"]), quote=True)' in source
+          assert 'html_lib.escape(str(doc["notes"]), quote=True)' in source
+          assert 'html_lib.escape(parse_iso_date(due_date), quote=True)' in source
+          assert 'html_lib.escape(parse_iso_date(valid_until), quote=True)' in source
+          assert 'html_lib.escape(str(company["logo_base64"]), quote=True)' in source
           assert "fonts.googleapis.com" not in source
           assert "request_origin_value in configured_origins" in source
           assert "def effective_plan(user: dict)" in source
@@ -108,6 +108,50 @@ jobs:
           assert '"complete", "completed"' not in payment_lib
           payment_page = Path("src/routes/_authenticated/payment-success.tsx").read_text(encoding="utf-8")
           assert 'status.data?.status.toLowerCase()' in payment_page
+          import html as html_lib
+
+          pdf_node = next(
+              node for node in parsed.body
+              if isinstance(node, ast.FunctionDef) and node.name == "generate_pdf_html"
+          )
+          pdf_namespace = {
+              "html_lib": html_lib,
+              "parse_iso_date": lambda value: value[:10] if value else "01-01-2026",
+          }
+          exec(compile(ast.Module(body=[pdf_node], type_ignores=[]), "<pdf>", "exec"), pdf_namespace)
+          generate_pdf_html = pdf_namespace["generate_pdf_html"]
+          attack = '<img src=x onerror="alert(1)">'
+          output = generate_pdf_html(
+              "invoice",
+              {
+                  "invoice_number": "INV-TEST",
+                  "created_at": "2026-10-27",
+                  "due_date": '"><img src=x onerror="alert(2)">',
+                  "notes": '<script>alert(3)</script>',
+                  "items": [{"description": attack, "quantity": 1, "unit_price": 10.0, "vat_rate": 21}],
+                  "subtotal": 10.0,
+                  "vat_total": 2.1,
+                  "total": 12.1,
+              },
+              {
+                  "_plan": "pro",
+                  "logo_base64": 'data:image/png;base64,AAAA"><img src=x onerror="alert(4)">',
+                  "company_name": '<svg onload="alert(5)">',
+                  "address": "",
+                  "postal_code": "",
+                  "city": "",
+                  "kvk_number": "",
+                  "btw_number": "",
+                  "iban": "",
+              },
+              {"name": '<script>alert(6)</script>', "address": "", "postal_code": "", "city": ""},
+          )
+          assert '<script>alert(3)</script>' not in output
+          assert '<img src=x onerror="alert(1)">' not in output
+          assert 'data:image/png;base64,AAAA"><img' not in output
+          assert '&lt;script&gt;alert(3)&lt;/script&gt;' in output
+          assert "fonts.googleapis.com" not in output
+          print("PDF rendering test passed: malicious HTML is escaped and no remote font is fetched.")
           print("HTML escaping, allowed origins, and route-level plan gates verified.")
           PY
 
