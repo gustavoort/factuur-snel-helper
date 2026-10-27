@@ -1,0 +1,157 @@
+name: Backend security patch checks
+
+on:
+  push:
+    branches:
+      - "audit/**"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-security-check.yml"
+  workflow_dispatch:
+
+jobs:
+  backend-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Compile original Python sources
+        run: python -m py_compile backend/server.py backend/patch_server.py
+      - name: Apply production patch in an isolated directory
+        run: |
+          mkdir -p /tmp/faktuvi-backend-check
+          cp backend/server.py backend/patch_server.py /tmp/faktuvi-backend-check/
+          cd /tmp/faktuvi-backend-check
+          python patch_server.py
+          sha256sum server.py > /tmp/server-before-idempotency.sha
+          python patch_server.py
+          sha256sum server.py > /tmp/server-after-idempotency.sha
+          diff -u /tmp/server-before-idempotency.sha /tmp/server-after-idempotency.sha
+          python -m py_compile server.py patch_server.py
+      - name: Assert HTML escaping is present in patched backend
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          source = Path("/tmp/faktuvi-backend-check/server.py").read_text(encoding="utf-8")
+          parsed = ast.parse(source)
+          assert "import html" in source
+          assert 'html.escape(str(item["description"]), quote=True)' in source
+          assert 'html.escape(str(doc["notes"]), quote=True)' in source
+          assert "request_origin_value in configured_origins" in source
+          assert "def effective_plan(user: dict)" in source
+          assert "def require_plan(user: dict, required_plan: str)" in source
+          assert 'require_plan(user, "pro")' in source
+          assert 'require_plan(user, "business")' in source
+          assert 'subscription = effective_plan(user)' in source
+          assert "Never build Stripe return URLs from an arbitrary Origin header." in source
+          assert "HTML injection hardening" not in source
+
+          def function_block(name):
+              node = next(
+                  node for node in parsed.body
+                  if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+              )
+              return ast.get_source_segment(source, node)
+
+          assert 'require_plan(user, "pro")' in function_block("upload_logo")
+          assert 'require_plan(user, "pro")' in function_block("send_quote_email")
+          assert 'require_plan(user, "pro")' in function_block("send_invoice_email")
+          assert 'require_plan(user, "business")' in function_block("create_invoice_payment_link")
+          assert 'company.pop("logo_base64", None)' in function_block("get_company")
+          assert 'company_data.pop("logo_base64", None)' in function_block("update_company")
+          assert 'require_plan' not in function_block("get_quote"), "Free plan must retain quote access"
+          assert 'require_plan' not in function_block("get_invoice"), "Free plan must retain invoice access"
+          assert 'company.get("_plan") in {"pro", "business"}' in source
+          print("HTML escaping, allowed origins, and route-level plan gates verified.")
+          PY
+
+      - name: Test subscription entitlement rules
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          source = Path("/tmp/faktuvi-backend-check/server.py").read_text(encoding="utf-8")
+          tree = ast.parse(source)
+          wanted = {"normalize_plan", "effective_plan", "require_plan"}
+          nodes = [
+              node for node in tree.body
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in wanted
+          ]
+          assignments = [
+              node for node in tree.body
+              if isinstance(node, ast.Assign)
+              and any(isinstance(target, ast.Name) and target.id in {"PLAN_ALIASES", "PLAN_RANK", "ACTIVE_SUBSCRIPTION_STATUSES"} for target in node.targets)
+          ]
+          assert {node.name for node in nodes} == wanted, "Entitlement functions missing"
+          class HTTPException(Exception):
+              def __init__(self, status_code, detail):
+                  self.status_code = status_code
+                  self.detail = detail
+          namespace = {"HTTPException": HTTPException}
+          exec(compile(ast.Module(body=assignments + nodes, type_ignores=[]), "<entitlements>", "exec"), namespace)
+          effective_plan = namespace["effective_plan"]
+          require_plan = namespace["require_plan"]
+          assert effective_plan({"subscription": "free"}) == "free"
+          assert effective_plan({"subscription": "pro", "subscription_status": "active", "stripe_subscription_id": "sub_test_pro"}) == "pro"
+          assert effective_plan({"subscription": "business", "subscription_status": "active", "stripe_subscription_id": "sub_test_business"}) == "business"
+          assert effective_plan({"subscription": "pro", "subscription_status": "cancel_at_period_end", "stripe_subscription_id": "sub_test_pro"}) == "pro"
+          assert effective_plan({"subscription": "pro", "subscription_status": "active"}) == "free"
+          assert effective_plan({"subscription": "pro", "stripe_subscription_id": "sub_test_pro"}) == "free"
+          assert effective_plan({"subscription": "pro", "subscription_status": "past_due", "stripe_subscription_id": "sub_test_123"}) == "free"
+          assert effective_plan({"subscription": "pro", "subscription_status": "active"}) == "free"
+          assert effective_plan({"subscription": "business", "subscription_status": "canceled"}) == "free"
+          require_plan({"subscription": "pro", "subscription_status": "active", "stripe_subscription_id": "sub_test_pro"}, "pro")
+          try:
+              require_plan({"subscription": "free"}, "pro")
+          except HTTPException as exc:
+              assert exc.status_code == 403
+          else:
+              raise AssertionError("Free plan unexpectedly received Pro access")
+          try:
+              require_plan({"subscription": "pro", "subscription_status": "past_due", "stripe_subscription_id": "sub_test_pro"}, "business")
+          except HTTPException as exc:
+              assert exc.status_code == 403
+          else:
+              raise AssertionError("Past-due subscription unexpectedly retained paid access")
+          origin_node = next(
+              node for node in tree.body
+              if isinstance(node, ast.FunctionDef) and node.name == "request_origin"
+          )
+          class FakeRequest:
+              def __init__(self, origin=None):
+                  self.headers = {"origin": origin} if origin else {}
+          fake_os = type("FakeOS", (), {
+              "environ": {"CORS_ORIGINS": "https://www.faktuvi.nl,https://faktuvi.nl"}
+          })()
+          origin_namespace = {
+              "os": fake_os,
+              "Request": object,
+              "FRONTEND_URL": "https://www.faktuvi.nl",
+          }
+          exec(compile(ast.Module(body=[origin_node], type_ignores=[]), "<origin>", "exec"), origin_namespace)
+          request_origin = origin_namespace["request_origin"]
+          assert request_origin(FakeRequest("https://www.faktuvi.nl")) == "https://www.faktuvi.nl"
+          assert request_origin(FakeRequest("https://faktuvi.nl")) == "https://faktuvi.nl"
+          assert request_origin(FakeRequest("https://attacker.example")) == "https://www.faktuvi.nl"
+          assert request_origin(FakeRequest()) == "https://www.faktuvi.nl"
+          print("Free/Pro/Business entitlement and Stripe return-origin checks passed.")
+          PY
+
+  frontend-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install frontend dependencies from lockfile
+        run: bun install --frozen-lockfile
+      - name: Lint frontend
+        run: bunx eslint src/routes/__root.tsx src/routes/privacy.tsx src/routes/terms.tsx src/routes/_authenticated/company.tsx 'src/routes/_authenticated/quotes.$id.index.tsx' 'src/routes/_authenticated/invoices.$id.index.tsx'
+      - name: Build frontend
+        run: bun run build

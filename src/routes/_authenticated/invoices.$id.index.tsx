@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { getApiErrorMessage } from "@/lib/api";
+import { currentSubscriptionQueryOptions } from "@/lib/subscription";
 import {
   createInvoicePaymentLink,
   deleteInvoice,
@@ -61,6 +62,9 @@ function InvoiceDetailPage() {
     ...invoiceQueryOptions(id),
     retry: false,
   });
+  const subscription = useQuery({ ...currentSubscriptionQueryOptions(), retry: false });
+  const canSendEmail = ["pro", "business"].includes(subscription.data?.plan.toLowerCase() ?? "");
+  const canCreatePaymentLink = subscription.data?.plan.toLowerCase() === "business";
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ["invoices"] });
@@ -165,15 +169,35 @@ function InvoiceDetailPage() {
             <Button variant="outline" disabled={busy} onClick={() => pdf.mutate()}>
               <Download className="h-4 w-4" /> {t("common.downloadPdf")}
             </Button>
-            <Button variant="outline" disabled={busy} onClick={() => email.mutate()}>
-              <Mail className="h-4 w-4" /> {t("common.sendEmail")}
-            </Button>
+            {canSendEmail ? (
+              <Button variant="outline" disabled={busy} onClick={() => email.mutate()}>
+                <Mail className="h-4 w-4" /> {t("common.sendEmail")}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                disabled={subscription.isPending}
+                onClick={() => void navigate({ to: "/billing" })}
+              >
+                <Mail className="h-4 w-4" /> {t("billing.upgrade")}
+              </Button>
+            )}
             <Button variant="outline" disabled={busy} onClick={() => whatsapp.mutate()}>
               <MessageCircle className="h-4 w-4" /> {t("common.shareWhatsapp")}
             </Button>
-            <Button variant="outline" disabled={busy} onClick={() => paymentLink.mutate()}>
-              <CreditCard className="h-4 w-4" /> {t("invoices.paymentLink")}
-            </Button>
+            {canCreatePaymentLink ? (
+              <Button variant="outline" disabled={busy} onClick={() => paymentLink.mutate()}>
+                <CreditCard className="h-4 w-4" /> {t("invoices.paymentLink")}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                disabled={subscription.isPending}
+                onClick={() => void navigate({ to: "/billing" })}
+              >
+                <CreditCard className="h-4 w-4" /> {t("billing.upgrade")}
+              </Button>
+            )}
             {!isPaid && (
               <Button disabled={busy} onClick={() => setConfirm("paid")}>
                 <CheckCircle2 className="h-4 w-4" /> {t("invoices.markPaid")}

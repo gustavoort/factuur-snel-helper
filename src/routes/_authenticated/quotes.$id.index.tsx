@@ -14,6 +14,7 @@ import {
   FileUp,
 } from "lucide-react";
 import { getApiErrorMessage } from "@/lib/api";
+import { currentSubscriptionQueryOptions } from "@/lib/subscription";
 import {
   convertQuote,
   deleteQuote,
@@ -57,6 +58,8 @@ function QuoteDetailPage() {
   const [confirm, setConfirm] = useState<"delete" | "convert" | null>(null);
 
   const { data, isPending, isError, error } = useQuery({ ...quoteQueryOptions(id), retry: false });
+  const subscription = useQuery({ ...currentSubscriptionQueryOptions(), retry: false });
+  const canSendEmail = ["pro", "business"].includes(subscription.data?.plan.toLowerCase() ?? "");
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ["quotes"] });
@@ -162,9 +165,19 @@ function QuoteDetailPage() {
             <Button variant="outline" disabled={busy} onClick={() => pdf.mutate()}>
               <Download className="h-4 w-4" /> {t("common.downloadPdf")}
             </Button>
-            <Button variant="outline" disabled={busy} onClick={() => email.mutate()}>
-              <Mail className="h-4 w-4" /> {t("common.sendEmail")}
-            </Button>
+            {canSendEmail ? (
+              <Button variant="outline" disabled={busy} onClick={() => email.mutate()}>
+                <Mail className="h-4 w-4" /> {t("common.sendEmail")}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                disabled={subscription.isPending}
+                onClick={() => void navigate({ to: "/billing" })}
+              >
+                <Mail className="h-4 w-4" /> {t("billing.upgrade")}
+              </Button>
+            )}
             <Button variant="outline" disabled={busy} onClick={() => whatsapp.mutate()}>
               <MessageCircle className="h-4 w-4" /> {t("common.shareWhatsapp")}
             </Button>

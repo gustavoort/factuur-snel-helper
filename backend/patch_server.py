@@ -1,16 +1,21 @@
 from pathlib import Path
+import re
+import html
 
 path = Path("server.py")
 source = path.read_text(encoding="utf-8")
 
 # Idempotency: each deploy starts from a clean checkout, but keep this safe.
-if "# ============ EMAIL (REAL) ============" in source and "@api_router.post(\"/stripe/webhook\")" in source:
+if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/stripe/webhook")' in source and "html.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
     print("server.py already patched")
     raise SystemExit(0)
 
 # --- Imports and environment ---
 if "import httpx\n" not in source:
     source = source.replace("import stripe\n", "import stripe\nimport httpx\n", 1)
+
+if "import html\n" not in source:
+    source = source.replace("import stripe\n", "import stripe\nimport html\n", 1)
 
 old_env = '''STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 if not STRIPE_SECRET_KEY:
@@ -208,6 +213,34 @@ SUBSCRIPTION_PLANS = {
 PAID_PLAN_AMOUNTS = {"pro": 999, "business": 2499}
 PLAN_ALIASES = {"gratis": "free", "free": "free", "pro": "pro", "business": "business"}
 
+PLAN_RANK = {"free": 0, "pro": 1, "business": 2}
+ACTIVE_SUBSCRIPTION_STATUSES = {"active", "trialing", "cancel_at_period_end"}
+
+
+def effective_plan(user: dict) -> str:
+    plan = normalize_plan(user.get("subscription", "free"))
+    if plan not in PLAN_RANK:
+        return "free"
+    if plan == "free":
+        return "free"
+
+    # Paid entitlements must be backed by an explicit active status and a
+    # Stripe subscription ID. Missing or unknown billing state fails closed.
+    status = str(user.get("subscription_status") or "").lower()
+    subscription_id = user.get("stripe_subscription_id")
+    if status not in ACTIVE_SUBSCRIPTION_STATUSES or not subscription_id:
+        return "free"
+    return plan
+
+
+def require_plan(user: dict, required_plan: str) -> None:
+    current = effective_plan(user)
+    if PLAN_RANK.get(current, 0) < PLAN_RANK[required_plan]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Deze functie vereist het {required_plan.capitalize()}-abonnement.",
+        )
+
 
 def normalize_plan(value: str) -> str:
     normalized = (value or "").strip().lower()
@@ -215,10 +248,20 @@ def normalize_plan(value: str) -> str:
 
 
 def request_origin(request: Request) -> str:
-    origin = (request.headers.get("origin") or FRONTEND_URL or "http://localhost:3000").rstrip("/")
-    if not (origin.startswith("https://") or origin.startswith("http://")):
-        return FRONTEND_URL
-    return origin
+    # Never build Stripe return URLs from an arbitrary Origin header.
+    configured_frontend = (FRONTEND_URL or "").rstrip("/")
+    configured_origins = {
+        value.strip().rstrip("/")
+        for value in os.environ.get("CORS_ORIGINS", "").split(",")
+        if value.strip()
+    }
+    if configured_frontend:
+        configured_origins.add(configured_frontend)
+
+    request_origin_value = (request.headers.get("origin") or "").rstrip("/")
+    if request_origin_value in configured_origins:
+        return request_origin_value
+    return configured_frontend
 
 
 @api_router.get("/subscription/plans")
@@ -488,6 +531,7 @@ async def stripe_webhook(request: Request):
 '''
 source = source[:stripe_start] + stripe_section + source[stripe_end:]
 
+
 # --- Security hardening: tenant-scope embedded client lookups ---
 # Apply ownership filters to every client join derived from a user's quote/invoice.
 def replace_once(old: str, new: str, label: str) -> None:
@@ -506,6 +550,67 @@ def replace_all_required(old: str, new: str, label: str) -> None:
     source = source.replace(old, new)
 
 
+# --- Enforce subscription entitlements in the backend (not only in the UI) ---
+replace_all_required(
+    '    subscription = user.get("subscription", "free")',
+    '    subscription = effective_plan(user)',
+    "effective subscription plan",
+)
+replace_once(
+    '    if user.get("subscription") != "business":\n        raise HTTPException(status_code=403, detail="Business nodig")',
+    '    require_plan(user, "business")',
+    "business payment-link entitlement",
+)
+replace_once(
+    'async def get_company(request: Request):\n    user = await get_current_user(request)\n    company = await db.companies.find_one({"user_id": user["_id"]}, {"_id": 0})\n    if not company:\n        company = {"user_id": user["_id"]}\n    return company',
+    'async def get_company(request: Request):\n    user = await get_current_user(request)\n    company = await db.companies.find_one({"user_id": user["_id"]}, {"_id": 0})\n    if not company:\n        company = {"user_id": user["_id"]}\n    if effective_plan(user) == "free":\n        company.pop("logo_base64", None)\n    return company',
+    "hide premium logo from Free plan profile response",
+)
+replace_once(
+    'async def update_company(data: CompanyProfile, request: Request):\n    user = await get_current_user(request)\n    company_data = data.model_dump()',
+    'async def update_company(data: CompanyProfile, request: Request):\n    user = await get_current_user(request)\n    company_data = data.model_dump()\n    if effective_plan(user) == "free":\n        company_data.pop("logo_base64", None)',
+    "company profile logo entitlement",
+)
+replace_once(
+    'async def upload_logo(request: Request, file: UploadFile = File(...)):\n    user = await get_current_user(request)\n',
+    'async def upload_logo(request: Request, file: UploadFile = File(...)):\n    user = await get_current_user(request)\n    require_plan(user, "pro")\n',
+    "logo upload entitlement",
+)
+replace_once(
+    'async def send_quote_email(quote_id: str, request: Request):\n    user = await get_current_user(request)\n    quote_obj_id = parse_object_id(quote_id, "quote_id")',
+    'async def send_quote_email(quote_id: str, request: Request):\n    user = await get_current_user(request)\n    require_plan(user, "pro")\n    quote_obj_id = parse_object_id(quote_id, "quote_id")',
+    "quote email entitlement",
+)
+replace_once(
+    'async def send_invoice_email(invoice_id: str, request: Request):\n    user = await get_current_user(request)\n    invoice_obj_id = parse_object_id(invoice_id, "invoice_id")\n    invoice_doc = await db.invoices.find_one',
+    'async def send_invoice_email(invoice_id: str, request: Request):\n    user = await get_current_user(request)\n    require_plan(user, "pro")\n    invoice_obj_id = parse_object_id(invoice_id, "invoice_id")\n    invoice_doc = await db.invoices.find_one',
+    "invoice email entitlement",
+)
+def add_pdf_plan_context(doc_type: str, doc_name: str) -> None:
+    global source
+    pattern = rf'(?m)^(?P<indent>[ ]*)html_content = generate_pdf_html\("{doc_type}", {doc_name}, company, client_doc\)$'
+
+    def add_context(match):
+        indent = match.group("indent")
+        return (
+            f'{indent}company["_plan"] = effective_plan(user)\n'
+            f'{indent}html_content = generate_pdf_html("{doc_type}", {doc_name}, company, client_doc)'
+        )
+
+    source, count = re.subn(pattern, add_context, source)
+    if count < 1:
+        raise RuntimeError(f"Expected at least one {doc_type} PDF generation call, found {count}")
+
+
+add_pdf_plan_context("quote", "quote_doc")
+add_pdf_plan_context("invoice", "invoice_doc")
+
+
+replace_once(
+    '    if company.get("logo_base64"):\n        logo_html = f\'<img src="',
+    '    if company.get("_plan") in {"pro", "business"} and company.get("logo_base64"):\n        logo_html = f\'<img src="',
+    "PDF logo entitlement",
+)
 replace_all_required(
     'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"])})',
     'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"]), "user_id": user["_id"]})',
@@ -534,6 +639,41 @@ replace_once(
     new_password: str = Field(min_length=12, max_length=128)""",
     "password reset policy",
 )
+
+
+# --- HTML injection hardening for generated PDFs and transactional email bodies ---
+# User-controlled text inserted into HTML must be escaped. The logo is a base64
+# data URI generated by the upload handler and does not contain HTML delimiters.
+def replace_html_value(old: str, new: str, label: str) -> None:
+    global source
+    count = source.count(old)
+    if count < 1:
+        raise RuntimeError(f"Expected at least one match for HTML escaping {label}, found {count}")
+    source = source.replace(old, new)
+
+
+replace_html_value('{item["description"]}', '{html.escape(str(item["description"]), quote=True)}', "line item description")
+replace_html_value('{doc["notes"]}', '{html.escape(str(doc["notes"]), quote=True)}', "document notes")
+replace_html_value('{company.get("company_name", "")}', '{html.escape(str(company.get("company_name", "")), quote=True)}', "company name")
+replace_html_value('{company.get("address", "")}', '{html.escape(str(company.get("address", "")), quote=True)}', "company address")
+replace_html_value('{company.get("postal_code", "")}', '{html.escape(str(company.get("postal_code", "")), quote=True)}', "company postal code")
+replace_html_value('{company.get("city", "")}', '{html.escape(str(company.get("city", "")), quote=True)}', "company city")
+replace_html_value('{company.get("kvk_number", "")}', '{html.escape(str(company.get("kvk_number", "")), quote=True)}', "company KvK")
+replace_html_value('{company.get("btw_number", "")}', '{html.escape(str(company.get("btw_number", "")), quote=True)}', "company VAT number")
+replace_html_value('{company.get("iban", "")}', '{html.escape(str(company.get("iban", "")), quote=True)}', "company IBAN")
+replace_html_value('{client_doc.get("company_name") or client_doc.get("name", "")}', '{html.escape(str(client_doc.get("company_name") or client_doc.get("name", "")), quote=True)}', "client company/name")
+replace_html_value('{client_doc.get("name", "")}', '{html.escape(str(client_doc.get("name", "")), quote=True)}', "client name")
+replace_html_value('{client_doc.get("address", "")}', '{html.escape(str(client_doc.get("address", "")), quote=True)}', "client address")
+replace_html_value('{client_doc.get("postal_code", "")}', '{html.escape(str(client_doc.get("postal_code", "")), quote=True)}', "client postal code")
+replace_html_value('{client_doc.get("city", "")}', '{html.escape(str(client_doc.get("city", "")), quote=True)}', "client city")
+replace_html_value('{doc_number}', '{html.escape(str(doc_number or ""), quote=True)}', "document number")
+replace_html_value('{date_str}', '{html.escape(str(date_str), quote=True)}', "document date")
+
+# Escape names and identifiers interpolated into transactional email HTML.
+replace_html_value("{client_doc.get('name', '')}", "{html.escape(str(client_doc.get('name', '')), quote=True)}", "email client name")
+replace_html_value("{company_name}", "{html.escape(str(company_name), quote=True)}", "email company name")
+replace_html_value("{quote_number}</strong>", "{html.escape(str(quote_number), quote=True)}</strong>", "email quote number")
+replace_html_value("{invoice_number}</strong>", "{html.escape(str(invoice_number), quote=True)}</strong>", "email invoice number")
 
 path.write_text(source, encoding="utf-8")
 print("server.py patched: real email + recurring Stripe billing + webhook")
