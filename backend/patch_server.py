@@ -532,7 +532,7 @@ async def apply_paid_checkout(session) -> None:
                 logger.error("Ignoring invoice payment with invalid owner metadata")
                 return
             await db.invoices.update_one(
-                {"_id": parse_object_id(invoice_id, "invoice_id"), "user_id": parse_object_id(user_id, "user_id")},
+                {"_id": parse_object_id(invoice_id, "invoice_id"), "user_id": str(user_id)},
                 {"$set": {"status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}}
             )
             await db.payment_transactions.update_one(
