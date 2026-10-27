@@ -544,7 +544,7 @@ def replace_all_required(old: str, new: str, label: str) -> None:
 
 
 # --- Enforce subscription entitlements in the backend (not only in the UI) ---
-replace_once(
+replace_all_required(
     '    subscription = user.get("subscription", "free")',
     '    subscription = effective_plan(user)',
     "effective subscription plan",
@@ -559,14 +559,14 @@ replace_once(
     'async def upload_logo(request: Request, file: UploadFile = File(...)):\n    user = await get_current_user(request)\n    require_plan(user, "pro")\n',
     "logo upload entitlement",
 )
-replace_all_required(
-    '    user = await get_current_user(request)\n    quote_obj_id = parse_object_id(quote_id, "quote_id")',
-    '    user = await get_current_user(request)\n    require_plan(user, "pro")\n    quote_obj_id = parse_object_id(quote_id, "quote_id")',
+replace_once(
+    'async def send_quote_email(quote_id: str, request: Request):\n    user = await get_current_user(request)\n    quote_obj_id = parse_object_id(quote_id, "quote_id")',
+    'async def send_quote_email(quote_id: str, request: Request):\n    user = await get_current_user(request)\n    require_plan(user, "pro")\n    quote_obj_id = parse_object_id(quote_id, "quote_id")',
     "quote email entitlement",
 )
-replace_all_required(
-    '    user = await get_current_user(request)\n    invoice_obj_id = parse_object_id(invoice_id, "invoice_id")\n    invoice_doc = await db.invoices.find_one',
-    '    user = await get_current_user(request)\n    require_plan(user, "pro")\n    invoice_obj_id = parse_object_id(invoice_id, "invoice_id")\n    invoice_doc = await db.invoices.find_one',
+replace_once(
+    'async def send_invoice_email(invoice_id: str, request: Request):\n    user = await get_current_user(request)\n    invoice_obj_id = parse_object_id(invoice_id, "invoice_id")\n    invoice_doc = await db.invoices.find_one',
+    'async def send_invoice_email(invoice_id: str, request: Request):\n    user = await get_current_user(request)\n    require_plan(user, "pro")\n    invoice_obj_id = parse_object_id(invoice_id, "invoice_id")\n    invoice_doc = await db.invoices.find_one',
     "invoice email entitlement",
 )
 replace_all_required(
@@ -584,12 +584,6 @@ replace_once(
     '    if company.get("_plan") in {"pro", "business"} and company.get("logo_base64"):\n        logo_html = f\'<img src="',
     "PDF logo entitlement",
 )
-replace_once(
-    '    subscription = user.get("subscription", "free")\n    return {',
-    '    subscription = effective_plan(user)\n    return {',
-    "current subscription effective plan",
-)
-
 replace_all_required(
     'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"])})',
     'db.clients.find_one({"_id": ObjectId(quote_doc["client_id"]), "user_id": user["_id"]})',
