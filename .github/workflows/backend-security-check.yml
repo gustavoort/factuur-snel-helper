@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "audit/**"
+      - "main"
   pull_request:
     paths:
       - "backend/**"
@@ -61,11 +62,17 @@ jobs:
           assert 'require_plan(user, "pro")' in function_block("send_quote_email")
           assert 'require_plan(user, "pro")' in function_block("send_invoice_email")
           assert 'require_plan(user, "business")' in function_block("create_invoice_payment_link")
+          assert 'success_url": f"{origin}/payment-success?session_id={{CHECKOUT_SESSION_ID}}' in source
           assert 'company.pop("logo_base64", None)' in function_block("get_company")
           assert 'company_data.pop("logo_base64", None)' in function_block("update_company")
           assert 'require_plan' not in function_block("get_quote"), "Free plan must retain quote access"
           assert 'require_plan' not in function_block("get_invoice"), "Free plan must retain invoice access"
           assert 'company.get("_plan") in {"pro", "business"}' in source
+          payment_lib = Path("src/lib/subscription.ts").read_text(encoding="utf-8")
+          assert 'transactionStatus === "pending" && failedSession' in payment_lib
+          assert '"complete", "completed"' not in payment_lib
+          payment_page = Path("src/routes/_authenticated/payment-success.tsx").read_text(encoding="utf-8")
+          assert 'status.data?.status.toLowerCase()' in payment_page
           print("HTML escaping, allowed origins, and route-level plan gates verified.")
           PY
 
@@ -152,6 +159,6 @@ jobs:
       - name: Install frontend dependencies from lockfile
         run: bun install --frozen-lockfile
       - name: Lint frontend
-        run: bunx eslint src/routes/__root.tsx src/routes/privacy.tsx src/routes/terms.tsx src/routes/_authenticated/company.tsx 'src/routes/_authenticated/quotes.$id.index.tsx' 'src/routes/_authenticated/invoices.$id.index.tsx'
+        run: bunx eslint src/routes/__root.tsx src/routes/privacy.tsx src/routes/terms.tsx src/routes/_authenticated/company.tsx 'src/routes/_authenticated/quotes.$id.index.tsx' 'src/routes/_authenticated/invoices.$id.index.tsx' src/lib/subscription.ts src/routes/_authenticated/payment-success.tsx
       - name: Build frontend
         run: bun run build
