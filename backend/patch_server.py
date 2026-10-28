@@ -412,6 +412,17 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
                 if not product_id:
                     raise HTTPException(status_code=409, detail="Não foi possível identificar o produto da subscrição atual.")
 
+                # Archived Stripe products cannot receive new prices for a subscription update.
+                product = stripe.Product.retrieve(product_id)
+                if not product.get("active", True):
+                    product = stripe.Product.create(
+                        name=f"Faktuvi {SUBSCRIPTION_PLANS[plan]['name']}",
+                        description="Plano de subscrição Faktuvi",
+                        active=True,
+                        metadata={"service": "faktuvi", "plan": plan},
+                    )
+                    product_id = product["id"]
+
                 new_price = stripe.Price.create(
                     product=product_id,
                     currency="eur",
