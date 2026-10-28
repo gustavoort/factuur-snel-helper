@@ -6,7 +6,7 @@ path = Path("server.py")
 source = path.read_text(encoding="utf-8")
 
 # Idempotency: each deploy starts from a clean checkout, but keep this safe.
-if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/stripe/webhook")' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
+if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/stripe/webhook")' in source and '@api_router.post("/webhook/stripe")' in source and '"paid": transaction.get("payment_status") == "paid"' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
     print("server.py already patched")
     raise SystemExit(0)
 
@@ -561,11 +561,13 @@ async def get_payment_status(session_id: str, request: Request):
     return {
         "status": session.status,
         "payment_status": transaction.get("payment_status", "pending"),
+        "paid": transaction.get("payment_status") == "paid",
         "type": transaction.get("type")
     }
 
 
 @api_router.post("/stripe/webhook")
+@api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     if not STRIPE_WEBHOOK_SECRET:
         raise HTTPException(status_code=503, detail="Stripe webhook is niet geconfigureerd")
