@@ -6,7 +6,7 @@ path = Path("server.py")
 source = path.read_text(encoding="utf-8")
 
 # Idempotency: each deploy starts from a clean checkout, but keep this safe.
-if "# ============ EMAIL (REAL) ============" in source and '@api_router.post("/stripe/webhook")' in source and '@api_router.post("/webhook/stripe")' in source and '"paid": transaction.get("payment_status") == "paid"' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
+if "# ============ EMAIL (REAL) ============" in source and 'A subscrição atual está num estado pendente no Stripe' in source and '@api_router.post("/stripe/webhook")' in source and '@api_router.post("/webhook/stripe")' in source and '"paid": transaction.get("payment_status") == "paid"' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
     print("server.py already patched")
     raise SystemExit(0)
 
@@ -389,15 +389,55 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
     if plan not in PAID_PLAN_AMOUNTS:
         raise HTTPException(status_code=400, detail="Ongeldig plan. Kies free, pro of business.")
 
-    # Avoid creating a second recurring Stripe subscription for the same account.
+    # Reuse an existing active subscription for plan changes; never create a second one.
     existing_subscription_id = user.get("stripe_subscription_id")
     existing_status = str(user.get("subscription_status") or "").lower()
     if existing_subscription_id and existing_status not in {"canceled", "incomplete_expired", "free"}:
         if effective_plan(user) == plan and existing_status in ACTIVE_SUBSCRIPTION_STATUSES:
             return {"url": f"{origin}/billing", "message": "Este plano já está ativo"}
+
+        if existing_status in ACTIVE_SUBSCRIPTION_STATUSES:
+            try:
+                current_subscription = stripe.Subscription.retrieve(existing_subscription_id)
+                items = current_subscription.get("items", {}).get("data", [])
+                if len(items) != 1:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="A subscrição atual não pode ser alterada automaticamente. Contacte o suporte.",
+                    )
+                current_item = items[0]
+                current_price = current_item.get("price", {})
+                product_value = current_price.get("product")
+                product_id = product_value.get("id") if isinstance(product_value, dict) else product_value
+                if not product_id:
+                    raise HTTPException(status_code=409, detail="Não foi possível identificar o produto da subscrição atual.")
+
+                new_price = stripe.Price.create(
+                    product=product_id,
+                    currency="eur",
+                    unit_amount=PAID_PLAN_AMOUNTS[plan],
+                    recurring={"interval": "month"},
+                    nickname=f"Faktuvi {SUBSCRIPTION_PLANS[plan]['name']}",
+                )
+                stripe.Subscription.modify(
+                    existing_subscription_id,
+                    items=[{"id": current_item["id"], "price": new_price.id}],
+                    proration_behavior="always_invoice",
+                    metadata={"user_id": str(user["_id"]), "plan": plan, "type": "subscription"},
+                )
+                return {
+                    "url": f"{origin}/billing",
+                    "message": f"Subscrição alterada para {SUBSCRIPTION_PLANS[plan]['name']}. A confirmação do Stripe pode demorar alguns instantes.",
+                }
+            except HTTPException:
+                raise
+            except stripe.error.StripeError as exc:
+                logger.exception("Stripe subscription change error: %s", exc)
+                raise HTTPException(status_code=502, detail="Não foi possível alterar a subscrição no Stripe. A subscrição atual foi mantida.")
+
         raise HTTPException(
             status_code=409,
-            detail="Já existe um estado de subscrição no Stripe. Cancele ou resolva a subscrição atual antes de iniciar outra.",
+            detail="A subscrição atual está num estado pendente no Stripe. Resolva-a antes de tentar outra alteração.",
         )
 
     try:
