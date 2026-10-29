@@ -484,6 +484,34 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
             detail="A subscrição atual está num estado pendente no Stripe. Resolva-a antes de tentar outra alteração.",
         )
 
+    # If local linkage is missing but Stripe already has an active subscription
+    # for this customer, stop rather than silently creating a duplicate.
+    if not existing_subscription_id and user.get("stripe_customer_id"):
+        try:
+            customer_subscriptions = stripe.Subscription.list(
+                customer=user["stripe_customer_id"],
+                status="active",
+                limit=10,
+            )
+            owned_active = [
+                item for item in customer_subscriptions.get("data", [])
+                if str((item.get("metadata") or {}).get("user_id", "")) == str(user["_id"])
+            ]
+            if owned_active:
+                logger.warning(
+                    "Checkout blocked for user %s: active Stripe subscription exists but local linkage is missing",
+                    user["_id"],
+                )
+                raise HTTPException(
+                    status_code=409,
+                    detail="Já existe uma subscrição ativa no Stripe, mas a ligação à conta precisa de ser reconciliada. Não foi criada uma nova cobrança.",
+                )
+        except HTTPException:
+            raise
+        except stripe.error.StripeError as exc:
+            logger.exception("Stripe duplicate-subscription check failed: %s", exc)
+            raise HTTPException(status_code=502, detail="Não foi possível verificar a subscrição existente. Nenhuma nova cobrança foi criada.")
+
     try:
         session_kwargs = {
             "mode": "subscription",
@@ -591,14 +619,26 @@ async def apply_paid_checkout(session) -> None:
     if checkout_type == "subscription":
         user_id = metadata.get("user_id")
         plan = normalize_plan(metadata.get("plan", ""))
-        if user_id and plan in PAID_PLAN_AMOUNTS:
+        if user_id and ObjectId.is_valid(str(user_id)) and plan in PAID_PLAN_AMOUNTS:
+            user_oid = parse_object_id(str(user_id), "user_id")
+            user_doc = await db.users.find_one({"_id": user_oid})
+            new_subscription_id = session.get("subscription")
+            current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
+            # A delayed Checkout webhook for a second subscription must not
+            # overwrite the account's already-linked subscription or plan.
+            if user_doc and current_subscription_id and new_subscription_id and current_subscription_id != new_subscription_id:
+                logger.warning(
+                    "Ignoring Checkout session %s for subscription %s: user %s is already linked to %s",
+                    session.get("id"), new_subscription_id, user_id, current_subscription_id,
+                )
+                return
             await db.users.update_one(
-                {"_id": parse_object_id(user_id, "user_id")},
+                {"_id": user_oid},
                 {"$set": {
                     "subscription": plan,
                     "subscription_status": "active",
                     "stripe_customer_id": session.get("customer"),
-                    "stripe_subscription_id": session.get("subscription"),
+                    "stripe_subscription_id": new_subscription_id,
                     "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
                 }}
             )
