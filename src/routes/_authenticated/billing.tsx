@@ -35,8 +35,13 @@ function BillingPage() {
   const checkout = useMutation({
     mutationFn: (plan: string) => startCheckout(plan),
     onSuccess: (url) => {
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast.success(t("billing.checkoutOpened"));
+      // Navigate the current tab: window.open after an async request can be
+      // blocked by mobile Safari and leave the user on /billing.
+      if (!/^https:\/\//i.test(url)) {
+        toast.error(t("billing.checkoutFailed"));
+        return;
+      }
+      window.location.assign(url);
     },
     onError: (err) => toast.error(getApiErrorMessage(err, t("billing.checkoutFailed"))),
   });
