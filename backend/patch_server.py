@@ -6,7 +6,7 @@ path = Path("server.py")
 source = path.read_text(encoding="utf-8")
 
 # Idempotency: each deploy starts from a clean checkout, but keep this safe.
-if "# ============ EMAIL (REAL) ============" in source and 'É necessário concluir o pagamento no Stripe para ativar o novo plano.' in source and 'and not obj.get("pending_update")' in source and '@api_router.post("/stripe/webhook")' in source and '@api_router.post("/webhook/stripe")' in source and '"paid": transaction.get("payment_status") == "paid"' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source and 'O Stripe ainda não disponibilizou a página de pagamento desta alteração.' in source:
+if "# ============ EMAIL (REAL) ============" in source and 'É necessário concluir o pagamento no Stripe para ativar o novo plano.' in source and 'and not obj.get("pending_update")' in source and '@api_router.post("/stripe/webhook")' in source and '@api_router.post("/webhook/stripe")' in source and '"paid": transaction.get("payment_status") == "paid"' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source and 'O Stripe ainda não disponibilizou a página de pagamento desta alteração.' in source and 'event_type == "invoice.paid"' in source:
     print("server.py already patched")
     raise SystemExit(0)
 
@@ -673,20 +673,66 @@ async def stripe_webhook(request: Request):
         if obj.get("payment_status") == "paid":
             await apply_paid_checkout(obj)
 
+    elif event_type == "invoice.paid":
+        # Invoice-paid is the authoritative signal for recurring charges and
+        # prorated subscription upgrades. Do not grant a plan from a merely
+        # updated subscription object.
+        subscription_value = obj.get("subscription")
+        subscription_id = subscription_value.get("id") if isinstance(subscription_value, dict) else subscription_value
+        if subscription_id:
+            try:
+                paid_subscription = stripe.Subscription.retrieve(subscription_id)
+            except stripe.error.StripeError:
+                logger.exception("Could not retrieve subscription for paid invoice %s", obj.get("id"))
+                return {"received": True}
+            metadata = paid_subscription.get("metadata") or {}
+            user_id = metadata.get("user_id")
+            plan = normalize_plan(metadata.get("plan", ""))
+            if user_id and ObjectId.is_valid(str(user_id)) and plan in PAID_PLAN_AMOUNTS:
+                user_oid = parse_object_id(str(user_id), "user_id")
+                user_doc = await db.users.find_one({"_id": user_oid})
+                current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
+                # Never let an old/duplicate subscription replace a different
+                # subscription already attached to this account.
+                if user_doc and (not current_subscription_id or current_subscription_id == subscription_id):
+                    if paid_subscription.get("status") in {"active", "trialing"} and not paid_subscription.get("pending_update"):
+                        await db.users.update_one(
+                            {"_id": user_oid},
+                            {"$set": {
+                                "subscription": plan,
+                                "subscription_status": "cancel_at_period_end" if paid_subscription.get("cancel_at_period_end") else paid_subscription.get("status"),
+                                "stripe_subscription_id": subscription_id,
+                                "stripe_customer_id": paid_subscription.get("customer"),
+                                "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
+                            }},
+                        )
+                elif user_doc and current_subscription_id != subscription_id:
+                    logger.warning(
+                        "Ignoring paid invoice %s for subscription %s: user %s is already linked to %s",
+                        obj.get("id"), subscription_id, user_id, current_subscription_id,
+                    )
+
     elif event_type == "customer.subscription.updated":
         metadata = obj.get("metadata") or {}
         user_id = metadata.get("user_id")
-        plan = normalize_plan(metadata.get("plan", ""))
-        if user_id:
-            update = {
-                "subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),
-                "stripe_subscription_id": obj.get("id"),
-                "stripe_customer_id": obj.get("customer"),
-                "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
-            }
-            if plan in PAID_PLAN_AMOUNTS and obj.get("status") in {"active", "trialing"} and not obj.get("pending_update"):
-                update["subscription"] = plan
-            await db.users.update_one({"_id": parse_object_id(user_id, "user_id")}, {"$set": update})
+        if user_id and ObjectId.is_valid(str(user_id)):
+            user_oid = parse_object_id(str(user_id), "user_id")
+            user_doc = await db.users.find_one({"_id": user_oid})
+            current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
+            # Status events from a duplicate/old subscription must not replace
+            # the account's canonical Stripe subscription.
+            if user_doc and (not current_subscription_id or current_subscription_id == obj.get("id")):
+                update = {
+                    "subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),
+                    "stripe_subscription_id": obj.get("id"),
+                    "stripe_customer_id": obj.get("customer"),
+                    "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+                # Do not change plan here: only a verified paid invoice or
+                # completed paid Checkout can grant/upgrade paid entitlements.
+                if obj.get("status") in {"canceled", "incomplete_expired"}:
+                    update["subscription"] = "free"
+                await db.users.update_one({"_id": user_oid}, {"$set": update})
 
     elif event_type == "customer.subscription.deleted":
         metadata = obj.get("metadata") or {}
