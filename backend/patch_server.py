@@ -6,7 +6,7 @@ path = Path("server.py")
 source = path.read_text(encoding="utf-8")
 
 # Idempotency: each deploy starts from a clean checkout, but keep this safe.
-if "# ============ EMAIL (REAL) ============" in source and 'Sync local entitlement only after Stripe confirms the prorated invoice is paid' in source and '@api_router.post("/stripe/webhook")' in source and '@api_router.post("/webhook/stripe")' in source and '"paid": transaction.get("payment_status") == "paid"' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
+if "# ============ EMAIL (REAL) ============" in source and 'É necessário concluir o pagamento no Stripe para ativar o novo plano.' in source and 'and not obj.get("pending_update")' in source and '@api_router.post("/stripe/webhook")' in source and '@api_router.post("/webhook/stripe")' in source and '"paid": transaction.get("payment_status") == "paid"' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source:
     print("server.py already patched")
     raise SystemExit(0)
 
@@ -460,6 +460,13 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
                         "url": f"{origin}/billing",
                         "message": f"Subscrição alterada para {SUBSCRIPTION_PLANS[plan]['name']}.",
                     }
+                # Send the customer to Stripe's hosted invoice page when an upgrade invoice needs payment/action.
+                invoice_url = latest_invoice.get("hosted_invoice_url") if isinstance(latest_invoice, dict) else None
+                if invoice_url and invoice_status in {"open", "uncollectible"}:
+                    return {
+                        "url": invoice_url,
+                        "message": "É necessário concluir o pagamento no Stripe para ativar o novo plano.",
+                    }
                 return {
                     "url": f"{origin}/billing",
                     "message": "A alteração aguarda a confirmação do pagamento no Stripe. O plano atual mantém-se até à confirmação.",
@@ -675,7 +682,7 @@ async def stripe_webhook(request: Request):
                 "stripe_customer_id": obj.get("customer"),
                 "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
             }
-            if plan in PAID_PLAN_AMOUNTS and obj.get("status") in {"active", "trialing"}:
+            if plan in PAID_PLAN_AMOUNTS and obj.get("status") in {"active", "trialing"} and not obj.get("pending_update"):
                 update["subscription"] = plan
             await db.users.update_one({"_id": parse_object_id(user_id, "user_id")}, {"$set": update})
 
