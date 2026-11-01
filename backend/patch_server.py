@@ -6,7 +6,7 @@ path = Path("server.py")
 source = path.read_text(encoding="utf-8")
 
 # Idempotency: each deploy starts from a clean checkout, but keep this safe.
-if "# ============ EMAIL (REAL) ============" in source and 'É necessário concluir o pagamento no Stripe para ativar o novo plano.' in source and 'and not obj.get("pending_update")' in source and '@api_router.post("/stripe/webhook")' in source and '@api_router.post("/webhook/stripe")' in source and '"paid": transaction.get("payment_status") == "paid"' in source and "html_lib.escape" in source and "request_origin_value in configured_origins" in source and "def effective_plan(user: dict)" in source and 'require_plan(user, "business")' in source and 'O Stripe ainda não disponibilizou a página de pagamento desta alteração.' in source and 'event_type == "invoice.paid"' in source:
+if "# ============ EMAIL (REAL) ============" in source and "async def claim_webhook_event" in source and "stripe_webhook_events" in source:
     print("server.py already patched")
     raise SystemExit(0)
 
@@ -16,6 +16,13 @@ if "import httpx\n" not in source:
 
 if "import html as html_lib\n" not in source:
     source = source.replace("import stripe\n", "import stripe\nimport html as html_lib\n", 1)
+
+if "from pymongo.errors import DuplicateKeyError\n" not in source:
+    source = source.replace(
+        "from pymongo import ReturnDocument\n",
+        "from pymongo import ReturnDocument\nfrom pymongo.errors import DuplicateKeyError\n",
+        1,
+    )
 
 old_env = '''STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 if not STRIPE_SECRET_KEY:
@@ -278,6 +285,7 @@ PLAN_ALIASES = {"gratis": "free", "free": "free", "pro": "pro", "business": "bus
 
 PLAN_RANK = {"free": 0, "pro": 1, "business": 2}
 ACTIVE_SUBSCRIPTION_STATUSES = {"active", "trialing", "cancel_at_period_end"}
+WEBHOOK_PROCESSING_LEASE = timedelta(minutes=5)
 
 
 def effective_plan(user: dict) -> str:
@@ -554,7 +562,12 @@ async def create_invoice_payment_link(invoice_id: str, request: Request):
     return {"url": session.url}
 
 
-async def apply_paid_checkout(session) -> None:
+async def apply_paid_checkout(
+    session,
+    event_created: int = 0,
+    event_id: str | None = None,
+    claim_token: str | None = None,
+) -> None:
     metadata = session.get("metadata") or {}
     checkout_type = metadata.get("type")
 
@@ -574,21 +587,46 @@ async def apply_paid_checkout(session) -> None:
                     session.get("id"), new_subscription_id, user_id, current_subscription_id,
                 )
                 return
-            await db.users.update_one(
-                {"_id": user_oid},
-                {"$set": {
-                    "subscription": plan,
-                    "subscription_status": "active",
-                    "stripe_customer_id": session.get("customer"),
-                    "stripe_subscription_id": new_subscription_id,
-                    "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
-                }}
-            )
-            await db.payment_transactions.update_one(
-                {"session_id": session.get("id")},
-                {"$set": {"payment_status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}},
-                upsert=False,
-            )
+            async def apply_checkout_effect(mongo_session):
+                await db.users.update_one(
+                    {
+                        "_id": user_oid,
+                        "$or": [
+                            {"subscription_event_created": {"$exists": False}},
+                            {"subscription_event_created": {"$lt": event_created}},
+                            {"subscription_event_created": event_created, "subscription_event_id": {"$lt": event_id}},
+                        ],
+                    },
+                    {"$set": {
+                        "subscription": plan,
+                        "subscription_status": "active",
+                        "stripe_customer_id": session.get("customer"),
+                        "stripe_subscription_id": new_subscription_id,
+                        "subscription_event_created": event_created,
+                        "subscription_event_id": event_id,
+                        "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
+                    }},
+                    session=mongo_session,
+                )
+                await db.payment_transactions.update_one(
+                    {
+                        "session_id": session.get("id"),
+                        "$or": [
+                            {"payment_event_id": {"$exists": False}},
+                            {"payment_event_id": event_id},
+                        ],
+                    },
+                    {"$set": {
+                        "payment_status": "paid",
+                        "payment_event_id": event_id,
+                        "paid_at": datetime.now(timezone.utc).isoformat(),
+                    }},
+                    upsert=False,
+                    session=mongo_session,
+                )
+
+            if event_id and claim_token:
+                await run_fenced_webhook_effect(event_id, claim_token, apply_checkout_effect)
 
     elif checkout_type == "invoice_payment":
         invoice_id = metadata.get("invoice_id")
@@ -597,15 +635,35 @@ async def apply_paid_checkout(session) -> None:
             if not user_id or not ObjectId.is_valid(user_id):
                 logger.error("Ignoring invoice payment with invalid owner metadata")
                 return
-            await db.invoices.update_one(
-                {"_id": parse_object_id(invoice_id, "invoice_id"), "user_id": str(user_id)},
-                {"$set": {"status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}}
-            )
-            await db.payment_transactions.update_one(
-                {"session_id": session.get("id")},
-                {"$set": {"payment_status": "paid", "paid_at": datetime.now(timezone.utc).isoformat()}},
-                upsert=False,
-            )
+            async def apply_invoice_payment_effect(mongo_session):
+                await db.invoices.update_one(
+                    {"_id": parse_object_id(invoice_id, "invoice_id"), "user_id": str(user_id)},
+                    {"$set": {
+                        "status": "paid",
+                        "payment_event_id": event_id,
+                        "paid_at": datetime.now(timezone.utc).isoformat(),
+                    }},
+                    session=mongo_session,
+                )
+                await db.payment_transactions.update_one(
+                    {
+                        "session_id": session.get("id"),
+                        "$or": [
+                            {"payment_event_id": {"$exists": False}},
+                            {"payment_event_id": event_id},
+                        ],
+                    },
+                    {"$set": {
+                        "payment_status": "paid",
+                        "payment_event_id": event_id,
+                        "paid_at": datetime.now(timezone.utc).isoformat(),
+                    }},
+                    upsert=False,
+                    session=mongo_session,
+                )
+
+            if event_id and claim_token:
+                await run_fenced_webhook_effect(event_id, claim_token, apply_invoice_payment_effect)
 
 
 @api_router.get("/payments/status/{session_id}")
@@ -632,6 +690,241 @@ async def get_payment_status(session_id: str, request: Request):
     }
 
 
+async def claim_webhook_event(event_id: str, event_payload: dict, claim_token: str) -> bool:
+    now = datetime.now(timezone.utc)
+    lease_until = now + WEBHOOK_PROCESSING_LEASE
+    try:
+        claimed = await db.stripe_webhook_events.find_one_and_update(
+            {
+                "event_id": event_id,
+                "$or": [
+                    {"status": {"$in": ["pending", "failed"]}},
+                    {"status": "processing", "lease_until": {"$lte": now}},
+                ],
+            },
+            {
+                "$set": {
+                    "status": "processing",
+                    "lease_until": lease_until,
+                    "claim_token": claim_token,
+                    "updated_at": now,
+                    "last_error": None,
+                },
+                "$inc": {"attempts": 1},
+                "$setOnInsert": {
+                    "event_id": event_id,
+                    "payload": event_payload,
+                    "received_at": now,
+                },
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+    except DuplicateKeyError:
+        claimed = await db.stripe_webhook_events.find_one({"event_id": event_id})
+
+    return bool(
+        claimed
+        and claimed.get("status") == "processing"
+        and claimed.get("lease_until") == lease_until
+        and claimed.get("claim_token") == claim_token
+    )
+
+
+async def complete_webhook_event(event_id: str, claim_token: str) -> None:
+    result = await db.stripe_webhook_events.update_one(
+        {"event_id": event_id, "status": "processing", "claim_token": claim_token},
+        {
+            "$set": {
+                "status": "completed",
+                "completed_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+                "lease_until": None,
+                "last_error": None,
+            },
+            "$unset": {"lease_until": ""},
+        },
+    )
+    if result.matched_count != 1:
+        raise RuntimeError(f"Webhook event claim lost before completion: {event_id}")
+
+
+async def fail_webhook_event(event_id: str, claim_token: str, error: Exception) -> None:
+    await db.stripe_webhook_events.update_one(
+        {"event_id": event_id, "status": "processing", "claim_token": claim_token},
+        {
+            "$set": {
+                "status": "failed",
+                "updated_at": datetime.now(timezone.utc),
+                "lease_until": None,
+                "last_error": str(error)[:2000],
+            },
+            "$unset": {"lease_until": ""},
+        },
+    )
+
+
+async def run_fenced_webhook_effect(event_id: str, claim_token: str, effect) -> None:
+    async with await client.start_session() as mongo_session:
+        async with mongo_session.start_transaction():
+            now = datetime.now(timezone.utc)
+            fence = await db.stripe_webhook_events.find_one_and_update(
+                {
+                    "event_id": event_id,
+                    "status": "processing",
+                    "claim_token": claim_token,
+                    "lease_until": {"$gt": now},
+                },
+                {
+                    "$set": {
+                        "lease_until": now + WEBHOOK_PROCESSING_LEASE,
+                        "last_effect_at": now,
+                    },
+                    "$inc": {"fence_version": 1},
+                },
+                session=mongo_session,
+                return_document=ReturnDocument.AFTER,
+            )
+            if not fence:
+                raise RuntimeError(f"Webhook claim is no longer valid: {event_id}")
+
+            await effect(mongo_session)
+
+            renewed = await db.stripe_webhook_events.update_one(
+                {
+                    "event_id": event_id,
+                    "status": "processing",
+                    "claim_token": claim_token,
+                    "lease_until": {"$gt": datetime.now(timezone.utc)},
+                },
+                {
+                    "$set": {
+                        "lease_until": datetime.now(timezone.utc) + WEBHOOK_PROCESSING_LEASE,
+                        "last_effect_at": datetime.now(timezone.utc),
+                    },
+                    "$inc": {"fence_version": 1},
+                },
+                session=mongo_session,
+            )
+            if renewed.matched_count != 1:
+                raise RuntimeError(f"Webhook claim was fenced during effect: {event_id}")
+
+
+async def process_stripe_event(event: dict, event_id: str, claim_token: str) -> None:
+    event_type = event.get("type")
+    event_created = int(event.get("created") or 0)
+    obj = event["data"]["object"]
+
+    if event_type in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
+        if obj.get("payment_status") == "paid":
+            await apply_paid_checkout(obj, event_created, event_id, claim_token)
+        return
+
+    if event_type == "invoice.paid":
+        subscription_value = obj.get("subscription")
+        subscription_id = subscription_value.get("id") if isinstance(subscription_value, dict) else subscription_value
+        if subscription_id:
+            paid_subscription = stripe.Subscription.retrieve(subscription_id)
+            metadata = paid_subscription.get("metadata") or {}
+            user_id = metadata.get("user_id")
+            plan = normalize_plan(metadata.get("plan", ""))
+            if user_id and ObjectId.is_valid(str(user_id)) and plan in PAID_PLAN_AMOUNTS:
+                user_oid = parse_object_id(str(user_id), "user_id")
+                user_doc = await db.users.find_one({"_id": user_oid})
+                current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
+                if user_doc and (not current_subscription_id or current_subscription_id == subscription_id):
+                    if paid_subscription.get("status") in {"active", "trialing"} and not paid_subscription.get("pending_update"):
+                        async def apply_invoice_effect(mongo_session):
+                            await db.users.update_one(
+                                {
+                                    "_id": user_oid,
+                                    "$or": [
+                                        {"subscription_event_created": {"$exists": False}},
+                                        {"subscription_event_created": {"$lt": event_created}},
+                                        {"subscription_event_created": event_created, "subscription_event_id": {"$lt": event_id}},
+                                    ],
+                                },
+                                {"$set": {
+                                    "subscription": plan,
+                                    "subscription_status": "cancel_at_period_end" if paid_subscription.get("cancel_at_period_end") else paid_subscription.get("status"),
+                                    "stripe_subscription_id": subscription_id,
+                                    "stripe_customer_id": paid_subscription.get("customer"),
+                                    "subscription_event_created": event_created,
+                                    "subscription_event_id": event_id,
+                                    "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
+                                }},
+                                session=mongo_session,
+                            )
+
+                        await run_fenced_webhook_effect(event_id, claim_token, apply_invoice_effect)
+        return
+
+    if event_type == "customer.subscription.updated":
+        metadata = obj.get("metadata") or {}
+        user_id = metadata.get("user_id")
+        if user_id and ObjectId.is_valid(str(user_id)):
+            user_oid = parse_object_id(str(user_id), "user_id")
+            user_doc = await db.users.find_one({"_id": user_oid})
+            current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
+            if user_doc and (not current_subscription_id or current_subscription_id == obj.get("id")):
+                update = {
+                    "subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),
+                    "stripe_subscription_id": obj.get("id"),
+                    "stripe_customer_id": obj.get("customer"),
+                    "subscription_event_created": event_created,
+                    "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+                if obj.get("status") in {"canceled", "incomplete_expired"}:
+                    update["subscription"] = "free"
+                async def apply_subscription_update(mongo_session):
+                    await db.users.update_one(
+                        {
+                            "_id": user_oid,
+                            "$or": [
+                                {"subscription_event_created": {"$exists": False}},
+                                {"subscription_event_created": {"$lt": event_created}},
+                                {"subscription_event_created": event_created, "subscription_event_id": {"$lt": event_id}},
+                            ],
+                        },
+                        {"$set": dict(update, subscription_event_id=event_id)},
+                        session=mongo_session,
+                    )
+
+                await run_fenced_webhook_effect(event_id, claim_token, apply_subscription_update)
+        return
+
+    if event_type == "customer.subscription.deleted":
+        metadata = obj.get("metadata") or {}
+        user_id = metadata.get("user_id")
+        if user_id and ObjectId.is_valid(str(user_id)):
+            user_oid = parse_object_id(str(user_id), "user_id")
+            user_doc = await db.users.find_one({"_id": user_oid})
+            if user_doc and user_doc.get("stripe_subscription_id") == obj.get("id"):
+                async def apply_subscription_deleted(mongo_session):
+                    await db.users.update_one(
+                        {
+                            "_id": user_oid,
+                            "stripe_subscription_id": obj.get("id"),
+                            "$or": [
+                                {"subscription_event_created": {"$exists": False}},
+                                {"subscription_event_created": {"$lt": event_created}},
+                                {"subscription_event_created": event_created, "subscription_event_id": {"$lt": event_id}},
+                            ],
+                        },
+                        {"$set": {
+                            "subscription": "free",
+                            "subscription_status": "canceled",
+                            "stripe_subscription_id": None,
+                            "subscription_event_created": event_created,
+                            "subscription_event_id": event_id,
+                            "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
+                        }},
+                        session=mongo_session,
+                    )
+
+                await run_fenced_webhook_effect(event_id, claim_token, apply_subscription_deleted)
+
+
 @api_router.post("/stripe/webhook")
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
@@ -648,91 +941,26 @@ async def stripe_webhook(request: Request):
     except (ValueError, stripe.error.SignatureVerificationError):
         raise HTTPException(status_code=400, detail="Ongeldige Stripe webhook")
 
-    event_type = event.get("type")
-    obj = event["data"]["object"]
+    event_id = event.get("id")
+    if not event_id:
+        raise HTTPException(status_code=400, detail="Stripe event-id ontbreekt")
+    event_created = event.get("created")
+    if not isinstance(event_created, int) or event_created <= 0:
+        raise HTTPException(status_code=400, detail="Stripe event-timestamp ontbreekt of is ongeldig")
+    claim_token = secrets.token_urlsafe(24)
+    if not await claim_webhook_event(event_id, event, claim_token):
+        return {"received": True, "duplicate": True}
 
-    if event_type in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
-        if obj.get("payment_status") == "paid":
-            await apply_paid_checkout(obj)
-
-    elif event_type == "invoice.paid":
-        # Invoice-paid is the authoritative signal for recurring charges and
-        # prorated subscription upgrades. Do not grant a plan from a merely
-        # updated subscription object.
-        subscription_value = obj.get("subscription")
-        subscription_id = subscription_value.get("id") if isinstance(subscription_value, dict) else subscription_value
-        if subscription_id:
-            try:
-                paid_subscription = stripe.Subscription.retrieve(subscription_id)
-            except stripe.error.StripeError:
-                logger.exception("Could not retrieve subscription for paid invoice %s", obj.get("id"))
-                return {"received": True}
-            metadata = paid_subscription.get("metadata") or {}
-            user_id = metadata.get("user_id")
-            plan = normalize_plan(metadata.get("plan", ""))
-            if user_id and ObjectId.is_valid(str(user_id)) and plan in PAID_PLAN_AMOUNTS:
-                user_oid = parse_object_id(str(user_id), "user_id")
-                user_doc = await db.users.find_one({"_id": user_oid})
-                current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
-                # Never let an old/duplicate subscription replace a different
-                # subscription already attached to this account.
-                if user_doc and (not current_subscription_id or current_subscription_id == subscription_id):
-                    if paid_subscription.get("status") in {"active", "trialing"} and not paid_subscription.get("pending_update"):
-                        await db.users.update_one(
-                            {"_id": user_oid},
-                            {"$set": {
-                                "subscription": plan,
-                                "subscription_status": "cancel_at_period_end" if paid_subscription.get("cancel_at_period_end") else paid_subscription.get("status"),
-                                "stripe_subscription_id": subscription_id,
-                                "stripe_customer_id": paid_subscription.get("customer"),
-                                "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
-                            }},
-                        )
-                elif user_doc and current_subscription_id != subscription_id:
-                    logger.warning(
-                        "Ignoring paid invoice %s for subscription %s: user %s is already linked to %s",
-                        obj.get("id"), subscription_id, user_id, current_subscription_id,
-                    )
-
-    elif event_type == "customer.subscription.updated":
-        metadata = obj.get("metadata") or {}
-        user_id = metadata.get("user_id")
-        if user_id and ObjectId.is_valid(str(user_id)):
-            user_oid = parse_object_id(str(user_id), "user_id")
-            user_doc = await db.users.find_one({"_id": user_oid})
-            current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
-            # Status events from a duplicate/old subscription must not replace
-            # the account's canonical Stripe subscription.
-            if user_doc and (not current_subscription_id or current_subscription_id == obj.get("id")):
-                update = {
-                    "subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),
-                    "stripe_subscription_id": obj.get("id"),
-                    "stripe_customer_id": obj.get("customer"),
-                    "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
-                }
-                # Do not change plan here: only a verified paid invoice or
-                # completed paid Checkout can grant/upgrade paid entitlements.
-                if obj.get("status") in {"canceled", "incomplete_expired"}:
-                    update["subscription"] = "free"
-                await db.users.update_one({"_id": user_oid}, {"$set": update})
-
-    elif event_type == "customer.subscription.deleted":
-        metadata = obj.get("metadata") or {}
-        user_id = metadata.get("user_id")
-        if user_id and ObjectId.is_valid(str(user_id)):
-            user_oid = parse_object_id(str(user_id), "user_id")
-            user_doc = await db.users.find_one({"_id": user_oid})
-            # Ignore deletion events for an old/duplicate subscription.
-            if user_doc and user_doc.get("stripe_subscription_id") == obj.get("id"):
-                await db.users.update_one(
-                    {"_id": user_oid, "stripe_subscription_id": obj.get("id")},
-                    {"$set": {
-                        "subscription": "free",
-                        "subscription_status": "canceled",
-                        "stripe_subscription_id": None,
-                        "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
-                    }}
-                )
+    try:
+        await process_stripe_event(event, event_id, claim_token)
+        await complete_webhook_event(event_id, claim_token)
+    except Exception as exc:
+        try:
+            await fail_webhook_event(event_id, claim_token, exc)
+        except Exception:
+            logger.exception("Could not persist failed Stripe webhook state for %s", event_id)
+        logger.exception("Stripe webhook processing failed for %s", event_id)
+        raise HTTPException(status_code=503, detail="Stripe webhook wordt opnieuw geprobeerd")
 
     return {"received": True}
 
@@ -912,6 +1140,14 @@ replace_html_value("{client_doc.get('name', '')}", "{html_lib.escape(str(client_
 replace_html_value("{company_name}", "{html_lib.escape(str(company_name), quote=True)}", "email company name")
 replace_html_value("{quote_number}</strong>", "{html_lib.escape(str(quote_number), quote=True)}</strong>", "email quote number")
 replace_html_value("{invoice_number}</strong>", "{html_lib.escape(str(invoice_number), quote=True)}</strong>", "email invoice number")
+
+# --- Durable Stripe webhook event storage ---
+source = source.replace(
+    '    await db.payment_transactions.create_index("session_id")',
+    '    await db.payment_transactions.create_index("session_id")\n'
+    '    await db.stripe_webhook_events.create_index("event_id", unique=True)',
+    1,
+)
 
 path.write_text(source, encoding="utf-8")
 print("server.py patched: real email + recurring Stripe billing + webhook")
