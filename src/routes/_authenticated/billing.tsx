@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
@@ -24,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/billing")({
 
 function BillingPage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const plans = useQuery({ ...plansQueryOptions(), enabled: isApiConfigured, retry: false });
   const current = useQuery({
@@ -34,14 +35,33 @@ function BillingPage() {
 
   const checkout = useMutation({
     mutationFn: (plan: string) => startCheckout(plan),
-    onSuccess: (url) => {
-      // Navigate the current tab: window.open after an async request can be
-      // blocked by mobile Safari and leave the user on /billing.
-      if (!/^https:\/\//i.test(url)) {
+    onSuccess: ({ url, message }) => {
+      // The API intentionally returns /billing when Free is activated or a
+      // subscription change has already been confirmed as paid. Reloading
+      // that same URL looks like checkout failed and can create a redirect loop.
+      let destination: URL;
+      try {
+        destination = new URL(url, window.location.origin);
+      } catch {
         toast.error(t("billing.checkoutFailed"));
         return;
       }
-      window.location.assign(url);
+
+      if (destination.origin === window.location.origin) {
+        if (destination.pathname.replace(/\/$/, "") !== "/billing") {
+          toast.error(t("billing.checkoutFailed"));
+          return;
+        }
+        toast.success(message || t("billing.current"));
+        void queryClient.invalidateQueries({ queryKey: ["subscription"] });
+        return;
+      }
+
+      if (destination.protocol !== "https:") {
+        toast.error(t("billing.checkoutFailed"));
+        return;
+      }
+      window.location.assign(destination.toString());
     },
     onError: (err) => toast.error(getApiErrorMessage(err, t("billing.checkoutFailed"))),
   });
