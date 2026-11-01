@@ -370,119 +370,61 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
         subscription_id = user.get("stripe_subscription_id")
         if subscription_id:
             try:
-                stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
-                await db.users.update_one(
-                    {"_id": parse_object_id(user["_id"], "user_id")},
-                    {"$set": {"subscription_status": "cancel_at_period_end"}}
+                subscription = stripe.Subscription.retrieve(subscription_id)
+                customer_id = subscription.get("customer")
+                if isinstance(customer_id, dict):
+                    customer_id = customer_id.get("id")
+                if not customer_id:
+                    raise HTTPException(status_code=409, detail="Não foi possível identificar o cliente Stripe.")
+                portal = stripe.billing_portal.Session.create(
+                    customer=customer_id,
+                    return_url=f"{origin}/billing",
                 )
-                return {"url": f"{origin}/billing", "message": "Abonnement wordt aan het einde van de periode stopgezet"}
+                return {"url": portal.url, "message": "Gerencie ou cancele a subscrição diretamente no Stripe."}
+            except HTTPException:
+                raise
             except stripe.error.StripeError as exc:
-                logger.exception("Stripe cancel error: %s", exc)
-                raise HTTPException(status_code=502, detail="Abonnement kon niet worden opgezegd")
-
+                logger.exception("Stripe billing portal error: %s", exc)
+                raise HTTPException(status_code=502, detail="Não foi possível abrir o portal de subscrição Stripe.")
         await db.users.update_one(
             {"_id": parse_object_id(user["_id"], "user_id")},
             {"$set": {"subscription": "free", "subscription_status": "free"}}
         )
-        return {"url": f"{origin}/billing", "message": "Gratis plan actief"}
+        return {"url": f"{origin}/billing", "message": "Plano gratuito ativo"}
 
     if plan not in PAID_PLAN_AMOUNTS:
         raise HTTPException(status_code=400, detail="Ongeldig plan. Kies free, pro of business.")
 
-    # Reuse an existing active subscription for plan changes; never create a second one.
+    # Existing subscriptions are never modified by this endpoint. Use Stripe's
+    # hosted Billing Portal for plan changes/cancellation; this avoids silent
+    # price creation, proration charges, and duplicate subscriptions.
     existing_subscription_id = user.get("stripe_subscription_id")
     existing_status = str(user.get("subscription_status") or "").lower()
     if existing_subscription_id and existing_status not in {"canceled", "incomplete_expired", "free"}:
-        if effective_plan(user) == plan and existing_status in ACTIVE_SUBSCRIPTION_STATUSES:
-            return {"url": f"{origin}/billing", "message": "Este plano já está ativo"}
+        try:
+            current_subscription = stripe.Subscription.retrieve(existing_subscription_id)
+            customer_id = current_subscription.get("customer")
+            if isinstance(customer_id, dict):
+                customer_id = customer_id.get("id")
+            if not customer_id:
+                raise HTTPException(status_code=409, detail="Não foi possível identificar o cliente Stripe.")
+            portal = stripe.billing_portal.Session.create(
+                customer=customer_id,
+                return_url=f"{origin}/billing",
+            )
+            return {
+                "url": portal.url,
+                "message": "Continue no portal seguro do Stripe para gerir ou alterar a subscrição.",
+            }
+        except HTTPException:
+            raise
+        except stripe.error.StripeError as exc:
+            logger.exception("Stripe billing portal error: %s", exc)
+            raise HTTPException(status_code=502, detail="Não foi possível abrir o portal Stripe. A subscrição atual não foi alterada.")
 
-        if existing_status in ACTIVE_SUBSCRIPTION_STATUSES:
-            try:
-                current_subscription = stripe.Subscription.retrieve(existing_subscription_id)
-                items = current_subscription.get("items", {}).get("data", [])
-                if len(items) != 1:
-                    raise HTTPException(
-                        status_code=409,
-                        detail="A subscrição atual não pode ser alterada automaticamente. Contacte o suporte.",
-                    )
-                current_item = items[0]
-                current_price = current_item.get("price", {})
-                product_value = current_price.get("product")
-                product_id = product_value.get("id") if isinstance(product_value, dict) else product_value
-                if not product_id:
-                    raise HTTPException(status_code=409, detail="Não foi possível identificar o produto da subscrição atual.")
-
-                # Archived Stripe products cannot receive new prices for a subscription update.
-                product = stripe.Product.retrieve(product_id)
-                if not product.get("active", True):
-                    product = stripe.Product.create(
-                        name=f"Faktuvi {SUBSCRIPTION_PLANS[plan]['name']}",
-                        description="Plano de subscrição Faktuvi",
-                        active=True,
-                        metadata={"service": "faktuvi", "plan": plan},
-                    )
-                    product_id = product["id"]
-
-                new_price = stripe.Price.create(
-                    product=product_id,
-                    currency="eur",
-                    unit_amount=PAID_PLAN_AMOUNTS[plan],
-                    recurring={"interval": "month"},
-                    nickname=f"Faktuvi {SUBSCRIPTION_PLANS[plan]['name']}",
-                )
-                stripe.Subscription.modify(
-                    existing_subscription_id,
-                    items=[{"id": current_item["id"], "price": new_price.id}],
-                    proration_behavior="always_invoice",
-                    payment_behavior="pending_if_incomplete",
-                    metadata={"user_id": str(user["_id"]), "plan": plan, "type": "subscription"},
-                )
-                # Sync local entitlement only after Stripe confirms the prorated invoice is paid.
-                refreshed_subscription = stripe.Subscription.retrieve(
-                    existing_subscription_id,
-                    expand=["latest_invoice"],
-                )
-                latest_invoice = refreshed_subscription.get("latest_invoice")
-                invoice_status = latest_invoice.get("status") if isinstance(latest_invoice, dict) else None
-                refreshed_status = str(refreshed_subscription.get("status") or "").lower()
-                if invoice_status == "paid" and refreshed_status in {"active", "trialing"}:
-                    await db.users.update_one(
-                        {"_id": parse_object_id(user["_id"], "user_id")},
-                        {"$set": {
-                            "subscription": plan,
-                            "subscription_status": "cancel_at_period_end" if refreshed_subscription.get("cancel_at_period_end") else refreshed_status,
-                            "stripe_subscription_id": refreshed_subscription.get("id"),
-                            "stripe_customer_id": refreshed_subscription.get("customer"),
-                            "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
-                        }},
-                    )
-                    return {
-                        "url": f"{origin}/billing",
-                        "message": f"Subscrição alterada para {SUBSCRIPTION_PLANS[plan]['name']}.",
-                    }
-                # Send the customer to Stripe's hosted invoice page when an upgrade invoice needs payment/action.
-                invoice_url = latest_invoice.get("hosted_invoice_url") if isinstance(latest_invoice, dict) else None
-                if invoice_url and invoice_status != "paid":
-                    return {
-                        "url": invoice_url,
-                        "message": "É necessário concluir o pagamento no Stripe para ativar o novo plano.",
-                    }
-                # Never redirect a pending upgrade back to billing as if the
-                # checkout had opened; surface a retryable error instead.
-                raise HTTPException(
-                    status_code=502,
-                    detail="O Stripe ainda não disponibilizou a página de pagamento desta alteração. O plano atual mantém-se; tente novamente dentro de alguns instantes.",
-                )
-            except HTTPException:
-                raise
-            except stripe.error.StripeError as exc:
-                logger.exception("Stripe subscription change error: %s", exc)
-                raise HTTPException(status_code=502, detail="Não foi possível alterar a subscrição no Stripe. A subscrição atual foi mantida.")
-
-        raise HTTPException(
-            status_code=409,
-            detail="A subscrição atual está num estado pendente no Stripe. Resolva-a antes de tentar outra alteração.",
-        )
+    if existing_subscription_id and existing_status in {"canceled", "incomplete_expired"}:
+        # A canceled subscription may be replaced with a new Checkout session.
+        pass
 
     # If local linkage is missing but Stripe already has an active subscription
     # for this customer, stop rather than silently creating a duplicate.
@@ -777,16 +719,20 @@ async def stripe_webhook(request: Request):
     elif event_type == "customer.subscription.deleted":
         metadata = obj.get("metadata") or {}
         user_id = metadata.get("user_id")
-        if user_id:
-            await db.users.update_one(
-                {"_id": parse_object_id(user_id, "user_id")},
-                {"$set": {
-                    "subscription": "free",
-                    "subscription_status": "canceled",
-                    "stripe_subscription_id": None,
-                    "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
-                }}
-            )
+        if user_id and ObjectId.is_valid(str(user_id)):
+            user_oid = parse_object_id(str(user_id), "user_id")
+            user_doc = await db.users.find_one({"_id": user_oid})
+            # Ignore deletion events for an old/duplicate subscription.
+            if user_doc and user_doc.get("stripe_subscription_id") == obj.get("id"):
+                await db.users.update_one(
+                    {"_id": user_oid, "stripe_subscription_id": obj.get("id")},
+                    {"$set": {
+                        "subscription": "free",
+                        "subscription_status": "canceled",
+                        "stripe_subscription_id": None,
+                        "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
+                    }}
+                )
 
     return {"received": True}
 
