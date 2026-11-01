@@ -581,6 +581,7 @@ async def apply_paid_checkout(
             current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
             # A delayed Checkout webhook for a second subscription must not
             # overwrite the account's already-linked subscription or plan.
+            # Avoid creating a second recurring Stripe subscription for the same account.
             if user_doc and current_subscription_id and new_subscription_id and current_subscription_id != new_subscription_id:
                 logger.warning(
                     "Ignoring Checkout session %s for subscription %s: user %s is already linked to %s",
