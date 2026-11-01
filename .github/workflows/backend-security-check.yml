@@ -309,6 +309,12 @@ jobs:
               def error(self, *args, **kwargs):
                   raise AssertionError("Unexpected invalid owner metadata")
 
+          class FakeSession:
+              pass
+
+          async def run_fenced_webhook_effect(event_id, claim_token, effect):
+              await effect(FakeSession())
+
           db = FakeDB()
           namespace = {
               "db": db,
@@ -317,6 +323,7 @@ jobs:
               "datetime": datetime,
               "timezone": timezone,
               "logger": FakeLogger(),
+              "run_fenced_webhook_effect": run_fenced_webhook_effect,
           }
           exec(compile(ast.Module(body=[node], type_ignores=[]), "<payment>", "exec"), namespace)
           session = {
@@ -328,7 +335,7 @@ jobs:
                   "user_id": "abcdef0123456789abcdef01",
               },
           }
-          asyncio.run(namespace["apply_paid_checkout"](session))
+          asyncio.run(namespace["apply_paid_checkout"](session, 1, "evt_test_invoice", "claim_test"))
           assert len(db.invoices.calls) == 1
           invoice_filter, invoice_update, _ = db.invoices.calls[0]
           assert invoice_filter["_id"] == "object:0123456789abcdef01234567"
