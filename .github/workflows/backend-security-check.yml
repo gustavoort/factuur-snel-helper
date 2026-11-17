@@ -261,6 +261,90 @@ jobs:
           print("Free/Pro/Business entitlement and Stripe return-origin checks passed.")
           PY
 
+      - name: Test invoice source-quote ownership
+        run: |
+          python - <<'PY'
+          import ast
+          import asyncio
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          source = Path("/tmp/faktuvi-backend-check/server.py").read_text(encoding="utf-8")
+          tree = ast.parse(source)
+          node = next(
+              n for n in tree.body
+              if isinstance(n, ast.AsyncFunctionDef) and n.name == "create_invoice"
+          )
+          node.decorator_list = []
+
+          class HTTPException(Exception):
+              def __init__(self, status_code, detail):
+                  self.status_code = status_code
+                  self.detail = detail
+
+          class Collection:
+              def __init__(self, docs):
+                  self.docs = docs
+                  self.inserted = []
+              async def find_one(self, query):
+                  for doc in self.docs:
+                      if all(doc.get(k) == v for k, v in query.items()):
+                          return doc
+                  return None
+              async def count_documents(self, query):
+                  return 0
+              async def insert_one(self, doc):
+                  self.inserted.append(doc)
+                  return type("R", (), {"inserted_id": "new-invoice"})()
+
+          class DB:
+              clients = Collection([{"_id": "client-b", "user_id": "user-b"}])
+              quotes = Collection([
+                  {"_id": "quote-a", "user_id": "user-a"},
+                  {"_id": "quote-b", "user_id": "user-b"},
+              ])
+              companies = Collection([])
+              invoices = Collection([])
+
+          class Data:
+              def __init__(self, from_quote_id):
+                  self.client_id = "client-b"
+                  self.items = []
+                  self.notes = ""
+                  self.from_quote_id = from_quote_id
+
+          async def get_current_user(request):
+              return {"_id": "user-b", "subscription": "pro"}
+          async def get_next_number(user_id, kind):
+              return "FAC-TEST-0001"
+
+          namespace = {
+              "HTTPException": HTTPException, "db": DB, "datetime": datetime,
+              "timedelta": timedelta, "timezone": timezone,
+              "InvoiceCreate": object, "Request": object,
+              "get_current_user": get_current_user, "get_next_number": get_next_number,
+              "parse_object_id": lambda value, field: value,
+              "effective_plan": lambda user: "pro",
+              "enforce_free_monthly_limit": lambda *a, **k: None,
+              "calculate_totals": lambda items: {"subtotal": 0, "vat_total": 0, "total": 0},
+          }
+          exec(compile(ast.Module(body=[node], type_ignores=[]), "<create_invoice>", "exec"), namespace)
+          create_invoice = namespace["create_invoice"]
+
+          try:
+              asyncio.run(create_invoice(Data("quote-a"), None))
+          except HTTPException as exc:
+              assert exc.status_code == 404
+          else:
+              raise AssertionError("Invoice accepted another account's quote as source")
+          assert DB.invoices.inserted == []
+
+          asyncio.run(create_invoice(Data("quote-b"), None))
+          asyncio.run(create_invoice(Data(None), None))
+          assert [doc["from_quote_id"] for doc in DB.invoices.inserted] == ["quote-b", None]
+          print("Invoice source-quote ownership check passed.")
+          PY
+
   invoice-payment-owner:
     runs-on: ubuntu-latest
     steps:

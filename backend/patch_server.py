@@ -1142,6 +1142,30 @@ replace_html_value("{company_name}", "{html_lib.escape(str(company_name), quote=
 replace_html_value("{quote_number}</strong>", "{html_lib.escape(str(quote_number), quote=True)}</strong>", "email quote number")
 replace_html_value("{invoice_number}</strong>", "{html_lib.escape(str(invoice_number), quote=True)}</strong>", "email invoice number")
 
+# --- Tenant isolation: invoices may only reference the caller's own quote ---
+replace_once(
+    '''        raise HTTPException(status_code=404, detail="Klant niet gevonden")
+
+    company = await db.companies.find_one({"user_id": user["_id"]})
+    payment_terms = company.get("payment_terms", 14) if company else 14
+''',
+    '''        raise HTTPException(status_code=404, detail="Klant niet gevonden")
+
+    if data.from_quote_id:
+        # Reject references to quotes owned by another account.
+        source_quote = await db.quotes.find_one({
+            "_id": parse_object_id(data.from_quote_id, "from_quote_id"),
+            "user_id": user["_id"],
+        })
+        if not source_quote:
+            raise HTTPException(status_code=404, detail="Offerte niet gevonden")
+
+    company = await db.companies.find_one({"user_id": user["_id"]})
+    payment_terms = company.get("payment_terms", 14) if company else 14
+''',
+    "invoice from_quote_id ownership check",
+)
+
 # --- Durable Stripe webhook event storage ---
 source = source.replace(
     '    await db.payment_transactions.create_index("session_id")',
