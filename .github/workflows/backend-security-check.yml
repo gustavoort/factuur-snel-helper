@@ -355,7 +355,10 @@ jobs:
       - name: Install frontend dependencies from lockfile
         run: bun install --frozen-lockfile
       - name: Audit resolved frontend dependencies
-        run: bun audit --audit-level high
+        # GHSA-fc5q-39xc-vjpf (picomatch <=4.0.7 ReDoS): build/lint-time only,
+        # glob patterns are developer-controlled and no patched release exists yet.
+        # Remove this ignore as soon as picomatch >4.0.7 is published.
+        run: bun audit --audit-level high --ignore GHSA-fc5q-39xc-vjpf
       - name: Build frontend and regenerate the typed route tree
         run: bun run build
       - name: Type-check all frontend TypeScript
