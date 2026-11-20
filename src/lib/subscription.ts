@@ -70,7 +70,12 @@ export async function getCurrentSubscription(): Promise<CurrentSubscription> {
   };
 }
 
-export async function startCheckout(plan: string): Promise<string> {
+export interface CheckoutResult {
+  url: string;
+  message: string;
+}
+
+export async function startCheckout(plan: string): Promise<CheckoutResult> {
   const { data } = await api.post<unknown>("/subscription/checkout", { plan });
   const response = asRecord(data);
   const url = text(
@@ -80,7 +85,7 @@ export async function startCheckout(plan: string): Promise<string> {
       response?.["link"],
   );
   if (!url) throw new Error(i18n.t("errors.noPaymentUrl"));
-  return url;
+  return { url, message: text(response?.["message"]) };
 }
 
 export interface PaymentStatus {
