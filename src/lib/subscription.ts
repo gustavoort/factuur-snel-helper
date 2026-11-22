@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import api from "@/lib/api";
-import i18n from "@/i18n";
+import i18n, { currentLanguage } from "@/i18n";
 import { asRecord, collection, num, text } from "@/lib/normalize";
 
 export interface Plan {
@@ -71,7 +71,12 @@ export async function getCurrentSubscription(): Promise<CurrentSubscription> {
 }
 
 export async function startCheckout(plan: string): Promise<string> {
-  const { data } = await api.post<unknown>("/subscription/checkout", { plan });
+  const { data } = await api.post<unknown>(
+    "/subscription/checkout",
+    { plan },
+    // Open Stripe Checkout / Billing Portal in the app's language.
+    { params: { locale: currentLanguage() } },
+  );
   const response = asRecord(data);
   const url = text(
     response?.["checkout_url"] ??

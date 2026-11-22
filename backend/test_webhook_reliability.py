@@ -415,3 +415,31 @@ def test_webhooks_derive_plan_from_price_and_checkout_disables_adaptive_pricing(
     assert 'update["subscription"] = current_plan' in source
     assert source.count('"adaptive_pricing": {"enabled": False}') + source.count('adaptive_pricing={"enabled": False}') == 2
     assert "resolve_plan_price_id(plan)" in source
+
+
+def _function_source(source: str, name: str) -> str:
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+            return ast.get_source_segment(source, node)
+    raise AssertionError(f"function {name} not found")
+
+
+def test_stripe_hosted_pages_follow_app_language():
+    source = build_patched_source()
+    namespace = {}
+    exec("STRIPE_LOCALES = {\"nl\": \"nl\", \"en\": \"en-GB\", \"pt\": \"pt-BR\"}\n" + _function_source(source, "stripe_locale"), namespace)
+    stripe_locale = namespace["stripe_locale"]
+    assert stripe_locale("nl") == "nl"
+    assert stripe_locale("en") == "en-GB"
+    assert stripe_locale("pt") == "pt-BR"
+    assert stripe_locale("pt-BR") == "pt-BR"
+    assert stripe_locale("") == "auto"
+    assert stripe_locale("xx") == "auto"
+    assert stripe_locale(None) == "auto"
+
+    checkout = _function_source(source, "create_subscription_checkout")
+    assert "page_locale = stripe_locale(locale)" in checkout
+    # Checkout Session plus both Billing Portal sessions use the app language.
+    assert checkout.count("locale=page_locale") == 2
+    assert '"locale": page_locale' in checkout
