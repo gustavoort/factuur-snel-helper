@@ -337,6 +337,7 @@ const nl = {
     availablePlans: "Beschikbare plannen",
     features: "Inbegrepen",
     upgrade: "Upgraden",
+    downgrade: "Downgraden",
     upgrading: "Bezig…",
     current: "Huidig plan",
     perMonth: "per maand",

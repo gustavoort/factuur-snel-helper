@@ -102,6 +102,12 @@ function BillingPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(plans.data ?? []).map((plan) => {
             const active = currentPlan.toLowerCase() === plan.id.toLowerCase();
+            // Plans cheaper than the current one are a downgrade (handled in the
+            // Stripe portal), so they must not be labelled as an upgrade.
+            const currentPrice =
+              (plans.data ?? []).find((p) => p.id.toLowerCase() === currentPlan.toLowerCase())
+                ?.price ?? 0;
+            const downgrade = !active && (plan.price ?? 0) < currentPrice;
             return (
               <Card key={plan.id} className={active ? "border-primary" : undefined}>
                 <CardHeader className="pb-2">
@@ -131,7 +137,7 @@ function BillingPage() {
                   )}
                   <Button
                     className="w-full"
-                    variant={active ? "outline" : "default"}
+                    variant={active || downgrade ? "outline" : "default"}
                     disabled={active || checkout.isPending}
                     onClick={() => checkout.mutate(plan.id)}
                   >
@@ -139,7 +145,9 @@ function BillingPage() {
                       ? t("billing.current")
                       : checkout.isPending
                         ? t("billing.upgrading")
-                        : t("billing.upgrade")}
+                        : downgrade
+                          ? t("billing.downgrade")
+                          : t("billing.upgrade")}
                   </Button>
                 </CardContent>
               </Card>

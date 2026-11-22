@@ -336,6 +336,7 @@ const pt = {
     availablePlans: "Planos disponíveis",
     features: "Incluído",
     upgrade: "Fazer upgrade",
+    downgrade: "Fazer downgrade",
     upgrading: "Processando…",
     current: "Plano atual",
     perMonth: "por mês",
