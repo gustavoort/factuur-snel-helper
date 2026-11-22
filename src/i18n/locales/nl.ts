@@ -93,6 +93,7 @@ const nl = {
       noAccount: "Nog geen account?",
       registerLink: "Registreren",
       failed: "Inloggen mislukt. Controleer je gegevens.",
+      paymentReturn: "Je betaling is afgerond. Log in om de status van je abonnement te bekijken.",
     },
     register: {
       title: "Account aanmaken",

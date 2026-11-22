@@ -92,6 +92,7 @@ const en = {
       noAccount: "Don't have an account yet?",
       registerLink: "Sign up",
       failed: "Login failed. Please check your details.",
+      paymentReturn: "Your payment is complete. Log in to see the status of your subscription.",
     },
     register: {
       title: "Create account",
