@@ -1,6 +1,6 @@
 # Faktuvi — Checklist de lançamento
 
-Última atualização: 2026-10-25
+Última atualização: 2026-11-22
 
 Este checklist é atualizado contra o código e deploy reais. Um item só recebe `OK` quando foi verificado; build isolado não é suficiente para aprovar um fluxo funcional.
 
@@ -9,7 +9,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [x] Marca pública Faktuvi aplicada à landing, logo, traduções, páginas legais, backend e favicon SVG.
 - [x] Metadados SEO da página inicial atualizados para Faktuvi.
 - [x] Projeto Vercel renomeado para `faktuvi`; domínios `faktuvi.nl` e `www.faktuvi.nl` associados e verificados na Vercel.
-- [ ] Testar resolução DNS e resposta HTTP pública de `https://www.faktuvi.nl` por verificador independente; domínio verificado na Vercel e utilizador confirmou que o site abre no iPhone.
+- [x] Resolução DNS (resolver 1.1.1.1 → Vercel) e resposta pública verificadas em 22/11/2026: `https://www.faktuvi.nl` HTTP 200, `https://faktuvi.nl` HTTP 308 para `www`.
 - [x] Domínio `faktuvi.nl` verificado no Resend; utilizador confirmou teste real bem-sucedido de recuperação de palavra-passe e envio de fatura por e-mail.
 
 ## FUNCIONANDO
@@ -18,7 +18,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - [x] Landing pública responde HTTP 200 em produção.
 - [x] Build Vercel continua `READY` após substituir a configuração Vite/Lovable por configuração nativa TanStack/Vite/Nitro.
 - [x] Build Vercel continua `READY` após remover `@lovable.dev/vite-tanstack-config` do `package.json`.
-- [x] Rotas públicas existentes: `/`, `/login`, `/register`, `/forgot-password`, `/reset-password`, `/privacy`, `/terms`.
+- [x] Rotas públicas existentes: `/`, `/login`, `/register`, `/forgot-password`, `/reset-password`, `/privacy`, `/terms`, `/invoice-paid`.
 - [x] Estrutura de rotas privadas protegida por `ProtectedRoute`.
 - [x] Cliente HTTP same-origin `/api` com cookies e refresh automático de sessão.
 - [x] Módulos frontend existentes para clientes, orçamentos, faturas, empresa, billing e dashboard.
@@ -65,22 +65,25 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 
 ## PENDENTE — BLOQUEADORES DE LANÇAMENTO
 
-- [ ] Versionar um lockfile de dependências consistente. O `bun.lock` antigo foi removido no PR de segurança para não reinstalar a versão vulnerável; o preview atual constrói com `npm install`, mas ainda falta gerar e commitar um `package-lock.json` validado.
+- [x] Lockfile consistente versionado: `bun.lock`, instalado no CI com `bun install --frozen-lockfile`.
 - [x] Build/runtime do backend confirmado no Railway: deployment `SUCCESS`; logs mostram as etapas do Dockerfile, instalação de requisitos e execução de `python patch_server.py`. Os fluxos funcionais ainda requerem testes separados.
 - [x] Fonte e implantação do serviço Railway confirmadas: `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`; deployment `SUCCESS` no commit `7163f5c`.
 - [x] Confirmar novo build e deploy Railway a partir do repositório correto: concluído no commit `7163f5c`.
 - [x] Resolver o bloqueio de segurança do Vercel: PR #1 foi integrado no commit `36c50ce`; `@tanstack/react-start` está fixado em `1.168.61` (versão corrigida para CVE-2026-102989) e o deployment de produção ficou `READY`.
-- [ ] Auditar e testar cadastro, login, logout e refresh de sessão contra o backend real. Recuperação de palavra-passe foi testada pelo utilizador e funcionou.
-- [ ] Testar CRUD real de clientes.
-- [ ] Testar CRUD, PDF, WhatsApp e conversão de orçamentos. O envio de fatura por e-mail foi testado pelo utilizador com sucesso.
-- [ ] Testar CRUD, PDF, WhatsApp, pagamento e marcação de faturas. O envio de fatura por e-mail foi testado pelo utilizador com sucesso.
-- [ ] Testar billing/checkout e retorno de pagamento.
-- [ ] Confirmar contratos e autorização do backend para todos os endpoints usados pelo frontend.
-- [ ] Executar instalação limpa, lint e build fora do ambiente Lovable.
+- [x] Cadastro, login e logout testados contra o backend real (utilizador e scripts de QA). Recuperação de palavra-passe testada pelo utilizador.
+- [ ] Testar explicitamente refresh de sessão e sessão expirada.
+- [x] CRUD real de clientes, incluindo isolamento entre contas (41/41 PASS, 17/11/2026).
+- [x] CRUD e PDF de orçamentos confirmados pelo utilizador.
+- [ ] Testar WhatsApp e conversão de orçamento em fatura em fluxo completo.
+- [x] CRUD, PDF, envio por e-mail e pagamento de faturas via link Stripe (página pública `/invoice-paid`, fatura marcada como paga).
+- [ ] Testar WhatsApp de faturas.
+- [x] Billing/checkout e retorno de pagamento testados em modo de teste: Pro e Business, cancelamento e troca de plano pelo portal, webhooks com HTTP 200.
+- [x] Autorização entre contas testada nos endpoints de clientes, orçamentos, faturas, dashboard, pagamentos e portal (41/41 e 16/16 PASS).
+- [x] Instalação limpa, lint, TypeScript e build fora do ambiente Lovable: executados no GitHub Actions em cada PR.
 - [ ] Testar fluxos reais em desktop e mobile, incluindo URLs diretas, refresh, sessão expirada, API offline, erros 4xx/5xx e estados vazios.
 - [ ] Revisar acessibilidade básica: teclado, labels, foco, contraste, headings e diálogos.
-- [ ] Revisar dependências e vulnerabilidades.
-- [ ] Verificar sitemap e confirmar canonical/Open Graph para `https://www.faktuvi.nl/` no HTML servido em produção.
+- [x] Dependências revistas: `bun audit --audit-level high` no CI (exceção documentada para o aviso de picomatch só de build, PR #18).
+- [x] Sitemap, canonical e Open Graph para `https://www.faktuvi.nl/` verificados pelo smoke test de produção.
 - [ ] Revisar juridicamente privacidade/termos antes do lançamento comercial definitivo.
 - [x] Domínio `faktuvi.nl` e `www.faktuvi.nl` configurados e verificados na Vercel; apex redireciona para `www` com HTTP 308.
 - [x] `RESEND_API_KEY` e `EMAIL_FROM` configuradas no Railway; deploy de produção SUCCESS e utilizador confirmou recuperação de palavra-passe e envio de fatura por e-mail.
@@ -111,7 +114,7 @@ Este checklist é atualizado contra o código e deploy reais. Um item só recebe
 - Vercel projeto `faktuvi` está ligado a `gustavoort/factuur-snel-helper`, branch `main`.
 - O serviço Railway de produção está configurado com `gustavoort/factuur-snel-helper`, branch `main`, root `/backend`, preservando domínio e variáveis existentes. As variáveis `RESEND_API_KEY` e `EMAIL_FROM` estão presentes na configuração de produção.
 - A configuração do serviço Railway ainda reporta builder RAILPACK, mas o deployment atual gerou a imagem via BuildKit e os logs mostram etapas do Dockerfile, incluindo `RUN python patch_server.py`. Manter esta divergência documentada e confirmar novamente no próximo deploy.
-- O backend do repositório oficial já foi implantado com sucesso no Railway. Permanecem pendentes os testes end-to-end de cadastro/login/logout/refresh, CRUD, PDFs, WhatsApp e pagamentos; recuperação de palavra-passe e envio de fatura por e-mail foram confirmados pelo utilizador.
+- O backend do repositório oficial está implantado no Railway. Cadastro/login/logout, CRUD, PDFs, e-mail, isolamento entre contas e pagamentos em modo de teste foram verificados; ficam pendentes refresh de sessão, WhatsApp e o modo live da Stripe.
 
 ## Regra de conclusão
 
@@ -126,17 +129,25 @@ O projeto não será marcado como pronto enquanto houver qualquer bloqueador aci
 - [x] O backend recebeu proteção adicional para tokens de recuperação de palavra-passe, limites de abuso, escape de conteúdo HTML de PDFs e remoção de fontes remotas no renderizador; foi corrigida e testada a regressão de shadowing do módulo HTML.
 - [x] O deployment Railway mais recente observado em 27/10/2026 está `SUCCESS` no commit `d46587f`; o build executou o Dockerfile e o patch de produção.
 - [x] O utilizador confirmou que cadastro/login/logout, criação/edição de orçamentos e faturas, PDF e envio de documentos estão a funcionar.
-- [ ] Continuam pendentes os testes de integração autenticados entre contas diferentes, validação de refresh de sessão e os fluxos de erro com sessão real.
+- [x] Testes de integração autenticados entre contas diferentes concluídos em 17/11 e 22/11/2026. Refresh de sessão e fluxos de erro com sessão real continuam pendentes (ver acima).
 - [x] O lockfile `bun.lock` está versionado e a instalação usa `bun install --frozen-lockfile`.
 - [x] A auditoria de dependências passou sem vulnerabilidades de severidade alta após atualizar Vite para `8.1.6` e Zod para `4.6.7`; o build e o TypeScript também passaram com estas versões.
 - [ ] Privacidade e termos continuam a necessitar de revisão jurídica antes do lançamento comercial.
-- [ ] **Pagamentos Stripe permanecem deliberadamente para a última etapa**, depois de concluir os restantes testes de segurança e funcionais.
+- [x] Pagamentos Stripe testados em modo de teste em 22/11/2026 (ver secção seguinte).
 
-## Estado real dos deployments — 27/10/2026 09:28 UTC
+## Estado real dos deployments — 22/11/2026
 
-- [x] GitHub `main` está no commit `8ef1a6ce`; o workflow de CI passou: lockfile, auditoria de dependências, build, TypeScript, ESLint global (sem Prettier), verificações de segurança e teste do proprietário do webhook.
-- [x] Railway está `SUCCESS` no commit `8ef1a6ce`. Os logs confirmam arranque da aplicação, criação dos índices, `GET /api/subscription/plans` = 200 e pedidos sem sessão para `/api/auth/me` e `/api/dashboard` = 401.
-- [ ] **Frontend Vercel ainda não está no commit atual.** O deployment de produção associado a `www.faktuvi.nl` continua `READY` no commit `b90caef1`. A tentativa de criar um deployment para o commit atual foi bloqueada pela Vercel com HTTP 402, limite `api-deployments-free-per-day` (mais de 100 deployments no dia; nova tentativa após 24 horas).
-- [ ] Após a reposição do limite da Vercel, publicar o commit `8ef1a6ce` (ou o `main` mais recente) e repetir o smoke test público. Até lá, não afirmar que Vite 8.1.6/Zod 4.6.7 já estão ativos no frontend de produção.
-- [ ] Continuam pendentes os testes de integração autenticados entre duas contas e sessões reais.
-- [ ] O teste E2E Stripe continua deliberadamente reservado para a última etapa.
+- [x] GitHub `main` no commit `8b06455` (PR #27); CI verde (backend-patch com 12 testes de webhook, frontend-quality, invoice-payment-owner).
+- [x] Vercel e Railway `success` no commit `8b06455`. O bloqueio HTTP 402 da quota diária da Vercel (27/10) está resolvido; os merges em `main` voltam a publicar automaticamente.
+- [x] Testes autenticados entre contas: 41/41 PASS (contas Free) e 16/16 PASS (contas pagas).
+- [x] E2E Stripe em modo de teste concluído: checkout Pro/Business, webhooks idempotentes (PRs #20 e #26), cancelamento pelo portal (PR #23), página pública de pagamento de fatura (PR #22), troca de plano pelo portal e checkout sempre em EUR (PR #27).
+
+## PENDENTE — STRIPE ANTES DO LANÇAMENTO COMERCIAL
+
+- [ ] Trocar o nome público da conta Stripe de "B&GSTORE" para Faktuvi (aparece no checkout, no portal e no extrato do cartão).
+- [ ] Desligar o Adaptive Pricing no painel da Stripe (o código já o desliga por sessão; o portal e as assinaturas antigas continuam a usar a definição do painel).
+- [ ] Configurar a conta Stripe live: chaves live no Railway, webhook live para `https://www.faktuvi.nl/api/webhook/stripe` com os mesmos eventos e novo segredo de assinatura, produtos Faktuvi Pro/Business com as lookup keys `faktuvi_pro_monthly`/`faktuvi_business_monthly`, e portal com troca de plano e cancelamento no fim do período.
+- [ ] Decidir sobre IVA/BTW (Stripe Tax ou preços com IVA incluído) antes de ativar o modo live.
+- [ ] Testar uma assinatura nova depois do PR #27 (EUR, preços fixos) e a primeira descida de plano agendada (17/12/2026, conta de teste A).
+- [ ] Testar falha de pagamento (`invoice.payment_failed`, cartão recusado, 3-D Secure).
+- [ ] Revisão jurídica de privacidade e termos.
