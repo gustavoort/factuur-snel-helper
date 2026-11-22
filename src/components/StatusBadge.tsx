@@ -11,6 +11,8 @@ const styles: Record<string, string> = {
   rejected: "border-destructive/30 bg-destructive/10 text-destructive",
   cancelled: "border-border bg-muted text-muted-foreground",
   expired: "border-border bg-muted text-muted-foreground",
+  active: "border-emerald-600/30 bg-emerald-600/10 text-emerald-700",
+  cancel_at_period_end: "border-amber-600/30 bg-amber-600/10 text-amber-700",
 };
 
 /** Shows a backend status with a translated label; unknown statuses render neutrally. */

@@ -371,6 +371,8 @@ const pt = {
     poweredBy: "Faturamento via Faktuvi",
   },
   status: {
+    active: "Ativo",
+    cancel_at_period_end: "Cancela no fim do período",
     draft: "Rascunho",
     sent: "Enviado",
     accepted: "Aceito",

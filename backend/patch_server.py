@@ -285,6 +285,21 @@ PLAN_ALIASES = {"gratis": "free", "free": "free", "pro": "pro", "business": "bus
 
 PLAN_RANK = {"free": 0, "pro": 1, "business": 2}
 ACTIVE_SUBSCRIPTION_STATUSES = {"active", "trialing", "cancel_at_period_end"}
+
+
+def local_subscription_status(subscription) -> str:
+    """Map a Stripe subscription to the locally stored status.
+
+    The Billing Portal schedules cancellations with ``cancel_at`` (a
+    timestamp) instead of ``cancel_at_period_end``, so both must be treated
+    as a pending cancellation while the subscription is still running.
+    """
+    status = subscription.get("status") or "unknown"
+    if status in {"active", "trialing"} and (
+        subscription.get("cancel_at_period_end") or subscription.get("cancel_at")
+    ):
+        return "cancel_at_period_end"
+    return status
 WEBHOOK_PROCESSING_LEASE = timedelta(minutes=5)
 
 
@@ -856,7 +871,7 @@ async def process_stripe_event(event: dict, event_id: str, claim_token: str) -> 
                                 },
                                 {"$set": {
                                     "subscription": plan,
-                                    "subscription_status": "cancel_at_period_end" if paid_subscription.get("cancel_at_period_end") else paid_subscription.get("status"),
+                                    "subscription_status": local_subscription_status(paid_subscription),
                                     "stripe_subscription_id": subscription_id,
                                     "stripe_customer_id": paid_subscription.get("customer"),
                                     "subscription_event_created": event_created,
@@ -878,7 +893,7 @@ async def process_stripe_event(event: dict, event_id: str, claim_token: str) -> 
             current_subscription_id = (user_doc or {}).get("stripe_subscription_id")
             if user_doc and (not current_subscription_id or current_subscription_id == obj.get("id")):
                 update = {
-                    "subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),
+                    "subscription_status": local_subscription_status(obj),
                     "stripe_subscription_id": obj.get("id"),
                     "stripe_customer_id": obj.get("customer"),
                     "subscription_event_created": event_created,

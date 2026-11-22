@@ -373,6 +373,8 @@ const nl = {
     poweredBy: "Facturatie via Faktuvi",
   },
   status: {
+    active: "Actief",
+    cancel_at_period_end: "Stopt aan einde periode",
     draft: "Concept",
     sent: "Verzonden",
     accepted: "Geaccepteerd",

@@ -369,6 +369,8 @@ const en = {
     poweredBy: "Invoicing by Faktuvi",
   },
   status: {
+    active: "Active",
+    cancel_at_period_end: "Ends at period end",
     draft: "Draft",
     sent: "Sent",
     accepted: "Accepted",
