@@ -60,6 +60,19 @@ def test_patch_is_idempotent_and_generated_source_compiles():
         assert first_hash == second_hash
 
 
+def assert_no_update_path_conflict(update):
+    """Mirror MongoDB: one update may not touch the same path with two operators."""
+    seen = {}
+    for operator, fields in update.items():
+        for field in fields:
+            if field in seen:
+                raise AssertionError(
+                    f"Updating the path '{field}' would create a conflict at '{field}' "
+                    f"({seen[field]} and {operator})"
+                )
+            seen[field] = operator
+
+
 class DuplicateKeyError(Exception):
     pass
 
@@ -72,6 +85,7 @@ class FakeWebhookCollection:
 
     async def find_one_and_update(self, query, update, *, upsert=False, return_document=None, session=None):
         with self.lock:
+            assert_no_update_path_conflict(update)
             now = datetime.now(timezone.utc)
             current = session.working_event if session else self.document
             if session:
@@ -115,6 +129,7 @@ class FakeWebhookCollection:
 
     async def update_one(self, query, update, session=None):
         with self.lock:
+            assert_no_update_path_conflict(update)
             current = session.working_event if session else self.document
             if current is None:
                 return type("Result", (), {"matched_count": 0})()
