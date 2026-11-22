@@ -92,6 +92,7 @@ const pt = {
       noAccount: "Ainda não tem conta?",
       registerLink: "Cadastre-se",
       failed: "Falha ao entrar. Verifique seus dados.",
+      paymentReturn: "Seu pagamento foi concluído. Entre para ver o status da sua assinatura.",
     },
     register: {
       title: "Criar conta",

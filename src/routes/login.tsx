@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -10,20 +10,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { pageMeta } from "@/i18n/head";
+import { isPaymentReturn, safeRedirectPath } from "@/lib/redirect";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CheckCircle2 } from "lucide-react";
+
+type LoginSearch = { redirect?: string | undefined };
 
 export const Route = createFileRoute("/login")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>): LoginSearch => ({
+    redirect: safeRedirectPath(search["redirect"]),
+  }),
   head: () => ({ meta: pageMeta("auth.login.title", "auth.login.subtitle") }),
-  component: () => (
-    <GuestRoute>
-      <LoginPage />
-    </GuestRoute>
-  ),
+  component: LoginRoute,
 });
 
-function LoginPage() {
+function LoginRoute() {
+  const { redirect } = Route.useSearch();
+  return (
+    <GuestRoute redirectTo={redirect}>
+      <LoginPage redirect={redirect} />
+    </GuestRoute>
+  );
+}
+
+function LoginPage({ redirect }: { redirect: string | undefined }) {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const router = useRouter();
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +48,8 @@ function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      void navigate({ to: "/dashboard", replace: true });
+      if (redirect) router.history.replace(redirect);
+      else void navigate({ to: "/dashboard", replace: true });
     } catch (err) {
       toast.error(getApiErrorMessage(err, t("auth.login.failed")));
     } finally {
@@ -44,6 +59,12 @@ function LoginPage() {
 
   return (
     <AuthShell title={t("auth.login.title")} subtitle={t("auth.login.subtitle")}>
+      {isPaymentReturn(redirect) && (
+        <Alert className="mb-4 border-primary/30 bg-primary/5">
+          <CheckCircle2 className="h-4 w-4 text-primary" />
+          <AlertDescription>{t("auth.login.paymentReturn")}</AlertDescription>
+        </Alert>
+      )}
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">{t("auth.email")}</Label>
