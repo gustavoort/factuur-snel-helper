@@ -84,6 +84,10 @@ jobs:
           assert 'require_plan(user, "pro")' in function_block("send_quote_email")
           assert 'require_plan(user, "pro")' in function_block("send_invoice_email")
           assert 'require_plan(user, "business")' in function_block("create_invoice_payment_link")
+          # Invoice payers have no Faktuvi account: they must return to a public page.
+          assert 'success_url=f"{origin}/invoice-paid"' in function_block("create_invoice_payment_link")
+          assert 'cancel_url=f"{origin}/invoice-paid?status=canceled"' in function_block("create_invoice_payment_link")
+          assert "/payment-success" not in function_block("create_invoice_payment_link")
           assert 'success_url": f"{origin}/payment-success?session_id={{CHECKOUT_SESSION_ID}}' in source
           assert 'company.pop("logo_base64", None)' in function_block("get_company")
           assert 'company_data.pop("logo_base64", None)' in function_block("update_company")

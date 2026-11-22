@@ -361,6 +361,17 @@ const nl = {
     backToBilling: "Naar abonnement",
     checkAgain: "Opnieuw controleren",
   },
+  invoicePaid: {
+    metaTitle: "Betaling factuur",
+    metaDescription: "Status van je factuurbetaling via Faktuvi.",
+    successTitle: "Bedankt voor je betaling",
+    successHint:
+      "Je betaling is ontvangen en wordt automatisch aan de factuur gekoppeld. Je kunt dit venster sluiten.",
+    canceledTitle: "Betaling geannuleerd",
+    canceledHint:
+      "Er is niets afgeschreven. Gebruik de betaallink uit de factuur om het opnieuw te proberen.",
+    poweredBy: "Facturatie via Faktuvi",
+  },
   status: {
     draft: "Concept",
     sent: "Verzonden",

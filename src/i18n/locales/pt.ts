@@ -360,6 +360,16 @@ const pt = {
     backToBilling: "Ir para assinatura",
     checkAgain: "Verificar novamente",
   },
+  invoicePaid: {
+    metaTitle: "Pagamento da fatura",
+    metaDescription: "Status do pagamento da sua fatura via Faktuvi.",
+    successTitle: "Obrigado pelo pagamento",
+    successHint:
+      "Recebemos seu pagamento, que será vinculado à fatura automaticamente. Você já pode fechar esta janela.",
+    canceledTitle: "Pagamento cancelado",
+    canceledHint: "Nada foi cobrado. Use o link de pagamento da fatura para tentar novamente.",
+    poweredBy: "Faturamento via Faktuvi",
+  },
   status: {
     draft: "Rascunho",
     sent: "Enviado",

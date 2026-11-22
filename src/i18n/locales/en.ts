@@ -358,6 +358,16 @@ const en = {
     backToBilling: "Go to subscription",
     checkAgain: "Check again",
   },
+  invoicePaid: {
+    metaTitle: "Invoice payment",
+    metaDescription: "Status of your invoice payment via Faktuvi.",
+    successTitle: "Thank you for your payment",
+    successHint:
+      "Your payment was received and will be linked to the invoice automatically. You can close this window.",
+    canceledTitle: "Payment canceled",
+    canceledHint: "Nothing was charged. Use the payment link in the invoice to try again.",
+    poweredBy: "Invoicing by Faktuvi",
+  },
   status: {
     draft: "Draft",
     sent: "Sent",
