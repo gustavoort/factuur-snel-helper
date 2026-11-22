@@ -58,7 +58,8 @@ jobs:
           assert "def require_plan(user: dict, required_plan: str)" in source
           assert "async def enforce_free_monthly_limit(user: dict, collection, document_label: str)" in source
           assert "Avoid creating a second recurring Stripe subscription for the same account." in source
-          assert '"subscription_status": "cancel_at_period_end" if obj.get("cancel_at_period_end") else obj.get("status", "unknown"),' in source
+          assert '"subscription_status": local_subscription_status(obj),' in source
+          assert 'subscription.get("cancel_at_period_end") or subscription.get("cancel_at")' in source
           assert 'require_plan(user, "pro")' in source
           assert 'require_plan(user, "business")' in source
           assert 'subscription = effective_plan(user)' in source
