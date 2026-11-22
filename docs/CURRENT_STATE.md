@@ -1,7 +1,7 @@
 # Faktuvi — Estado técnico atual
 
 Data da auditoria inicial: 2026-09-13
-Última atualização de estado: 2026-10-25
+Última atualização de estado: 2026-11-22
 Repositório oficial: `gustavoort/factuur-snel-helper`
 Branch auditada: `main`
 
@@ -58,6 +58,9 @@ A aplicação usa React Query para estado remoto e cache, Axios para comunicaç�
 - `/register`
 - `/forgot-password`
 - `/reset-password`
+- `/privacy`
+- `/terms`
+- `/invoice-paid` — página pública de retorno do pagamento de fatura pela Stripe (sucesso e `?status=canceled`)
 
 ## 5. Rotas privadas confirmadas
 
@@ -99,7 +102,7 @@ O backend FastAPI está agora versionado em `backend/` neste repositório. O ser
 
 As métricas recentes do Railway mostram respostas 2xx em `/api/subscription/plans` e `/api/dashboard`. `/api/auth/me` tem respostas 401 sem sessão, esperadas, e também uma resposta 2xx. Isto confirma conectividade básica, não os fluxos completos de autenticação, persistência e faturação.
 
-Não foi encontrada integração frontend direta com Supabase no código auditado. Resend, Stripe, persistência e autorização ainda precisam de testes funcionais com uma conta de teste.
+Não foi encontrada integração frontend direta com Supabase no código auditado. Resend, persistência, autorização entre contas e a faturação Stripe (modo de teste) foram testados em produção; ver secção 13.
 
 ## 8. Módulos funcionais presentes no frontend
 
@@ -121,9 +124,10 @@ Existe camada de API para:
 - listar planos;
 - consultar assinatura atual;
 - iniciar checkout;
-- verificar estado do pagamento.
+- verificar estado do pagamento;
+- abrir o portal de cliente da Stripe (cancelar, trocar de plano, atualizar cartão).
 
-O dashboard também exibe o plano atual quando disponível.
+O dashboard também exibe o plano atual quando disponível. Ver secção 17 para o modelo de faturação Stripe.
 
 ### Dashboard
 Consome `/api/dashboard` e exibe clientes, orçamentos, faturas, receita paga, valores em aberto e itens recentes.
@@ -157,27 +161,31 @@ A pesquisa atual do código não encontrou dependências nem referências runtim
 - Manter `bun.lock` sincronizado com `package.json`; o CI agora falha se houver vulnerabilidades de dependência de severidade alta.
 - [x] Metadata da homepage, canonical e Open Graph usam o domínio definitivo `https://www.faktuvi.nl/`.
 - [x] `robots.txt` e `sitemap.xml` estão publicados e verificados pelo smoke test.
-- Existe CI para build, TypeScript, ESLint global e smoke tests públicos; ainda falta E2E autenticado completo entre contas.
+- Existe CI para build, TypeScript, ESLint global, smoke tests públicos e testes do webhook Stripe (`backend/test_webhook_reliability.py`). Os testes entre contas e de pagamento foram executados manualmente com scripts de QA; ainda não correm automaticamente no CI.
 - Privacidade e termos ainda devem passar por revisão jurídica antes do lançamento comercial definitivo.
 - O envio transacional de e-mail (recuperação de palavra-passe e fatura) foi testado manualmente pelo utilizador e funcionou em produção. Outros fluxos continuam por testar.
 
 ## 13. Estado dos testes de runtime
 
-### Confirmado
+### Confirmado (produção, 22/11/2026)
 
-- Build e deployment de produção Vercel `READY` no commit `36c50ce`, após corrigir a dependência vulnerável do TanStack Start.
-- Deployment Railway `SUCCESS` no repositório oficial, commit `7163f5c`; o build executou `backend/patch_server.py`.
-- `/api/subscription/plans` respondeu 2xx; `/api/dashboard` respondeu 2xx em métricas recentes do Railway.
-- `/api/auth/me` devolve 401 quando não há sessão, comportamento esperado; também há uma resposta 2xx nas métricas recentes.
+- `main` no commit `8b06455` (PR #27); Vercel e Railway `success` nesse commit. O bloqueio de quota da Vercel de 27/10 está resolvido: cada merge em `main` volta a publicar automaticamente.
+- Cadastro, login, logout, recuperação de palavra-passe, CRUD de clientes/orçamentos/faturas, PDF e envio por e-mail: confirmados pelo utilizador e/ou pelos testes de QA.
+- Isolamento entre contas: 41/41 PASS (17/11/2026) com duas contas Free; 16/16 PASS (22/11/2026) com contas pagas (portal, regras de plano, isolamento). Uma fatura não pode referenciar o orçamento de outra conta (PR #19).
+- Checkout Stripe de assinatura (Pro e Business) em modo de teste: pagamento, webhook e ativação do plano confirmados em três contas.
+- Webhook Stripe: processamento idempotente com claim/lease; corrigidos o claim que nunca processava eventos (PR #20) e o conflito de caminho no MongoDB que devolvia 503 após aplicar o efeito (PR #26). Entrega nova após o PR #26 confirmada com HTTP 200 no Workbench.
+- Cancelamento pelo portal (`cancel_at`) mostrado como cancelamento agendado (PR #23).
+- Troca de plano pelo portal: Pro → Business aplicado de imediato com cobrança proporcional; Business → Pro agendado para o fim do período (PR #27).
+- Link de pagamento de fatura (plano Business): cancelamento e pagamento regressam à página pública `/invoice-paid`; a fatura fica paga e um novo link é recusado (PR #22).
 
 ### Ainda pendente de teste funcional
 
-- Cadastro, login, logout e refresh de sessão com conta de teste. Recuperação/redefinição de palavra-passe foi testada manualmente pelo utilizador e funcionou.
-- CRUD real de clientes, orçamentos e faturas, incluindo autorização entre utilizadores.
-- Geração e download de PDFs, links WhatsApp e conversão de orçamento em fatura. O utilizador confirmou envio de fatura por e-mail via Resend.
-- Checkout e webhooks Stripe em modo de teste; validar idempotência e estados de subscrição.
-- Instalação limpa, lint e testes automatizados; a compilação de produção passou, mas não substitui estes testes.
-- Comportamento de desktop/mobile, acessibilidade básica e fluxos de erro 4xx/5xx.
+- Execução da descida de plano agendada (primeira data: 17/12/2026, conta de teste A).
+- Checkout de uma assinatura nova depois do PR #27, para confirmar EUR sem Adaptive Pricing e uso dos preços fixos.
+- Falhas de pagamento (`invoice.payment_failed`, cartão recusado, 3-D Secure) e renovação mensal real.
+- Links WhatsApp e conversão de orçamento em fatura em fluxo completo.
+- Comportamento de desktop/mobile, acessibilidade básica e fluxos de erro 4xx/5xx com sessão real.
+- Todo o fluxo em modo live da Stripe (ainda não configurado; ver LAUNCH_CHECKLIST).
 
 ## 14. Funcionalidades que ainda não existem no produto atual
 
@@ -194,12 +202,14 @@ Esses módulos devem ser implementados apenas quando houver suporte real no back
 
 ## 15. Riscos de produção identificados
 
-1. Dependência direta de build do Lovable.
-2. Backend não versionado neste repositório, criando dependência operacional externa que precisa permanecer documentada.
-3. Ausência de evidência de suíte de testes automatizados frontend.
-4. Necessidade de validar todos os contratos API existentes contra o backend real.
-5. SEO e metadata ainda não finalizados.
-6. Configuração de domínio e Resend ainda deve permanecer para a última etapa, conforme decisão de produto.
+Resolvidos: dependência do Lovable, backend não versionado, SEO/metadata, domínio e Resend.
+
+Em aberto:
+
+1. Stripe ainda em modo de teste, numa conta cujo nome público é "B&GSTORE"; falta configurar a conta live (ver checklist).
+2. Testes entre contas e de pagamento são scripts manuais; não existe E2E automático no CI.
+3. Privacidade e termos sem revisão jurídica.
+4. Assinaturas de teste antigas foram criadas com Adaptive Pricing e são cobradas em USD; desligar a opção no painel da Stripe.
 
 ## 16. Estratégia de consolidação
 
@@ -216,13 +226,12 @@ A ordem segura de execução é:
 7. preparar produção;
 8. por último configurar domínio e Resend.
 
-## Atualização operacional dos deployments — 27/10/2026 09:28 UTC
+## 17. Faturação Stripe
 
-Esta atualização substitui as referências históricas a deployments anteriores nas secções acima.
-
-- GitHub `main`: commit `8ef1a6ce`. O CI passou com `bun.lock`, `bun audit --audit-level high`, build, `tsc --noEmit`, ESLint global (exceto regra Prettier) e testes de segurança do backend.
-- Railway: deployment `SUCCESS` no commit `8ef1a6ce`. Logs confirmam arranque, criação de índices, endpoint público dos planos com HTTP 200 e endpoints protegidos com HTTP 401 sem sessão.
-- Vercel: o alias de produção `www.faktuvi.nl` ainda aponta para o deployment `READY` do commit `b90caef1`; não há deployment publicado para o `main` mais recente.
-- A tentativa de criar deployment Vercel para o commit `8ef1a6ce` foi recusada com HTTP 402 devido ao limite diário `api-deployments-free-per-day` (mais de 100 deployments no dia; a API indicou esperar 24 horas). Não foi alterada a faturação nem qualquer configuração de plano.
-- Próximo passo operacional: depois de o limite Vercel reiniciar, publicar o `main` mais recente e executar novamente o smoke test de produção. Não considerar a atualização de dependências frontend publicada até isso ocorrer.
-- O checkout Stripe E2E continua deliberadamente para o fim; não foi iniciado nenhum pagamento real nem de teste nesta etapa.
+- Conta Stripe usada pelo backend: modo de teste (`livemode: false`). Webhook `https://www.faktuvi.nl/api/webhook/stripe` (API `2024-12-18.acacia`) com os eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created/updated/deleted`, `invoice.paid` e `invoice.payment_failed`.
+- Preços fixos com lookup keys `faktuvi_pro_monthly` (€9,99/mês) e `faktuvi_business_monthly` (€24,99/mês). O checkout usa-os quando existem e, caso contrário, recorre a `price_data`.
+- O plano local é derivado do preço atual da assinatura (lookup key → valor mensal em EUR → `metadata.plan` como recurso), porque o portal troca o preço mas não o metadado.
+- `adaptive_pricing` está desligado em todos os Checkout Sessions: o cliente paga sempre em EUR.
+- Portal de cliente: cancelamento no fim do período, atualização de cartão e dados, histórico de faturas e troca entre Faktuvi Pro e Faktuvi Business. Upgrade com cobrança proporcional imediata (`always_invoice`); downgrade agendado para o fim do período.
+- Retornos: assinatura → `/payment-success?session_id=…` (autenticada), cancelamento → `/billing`; fatura → `/invoice-paid` (pública); portal → `/billing`.
+- Uma assinatura existente nunca é alterada pelo endpoint de checkout: pedidos de mudança de plano são enviados para o portal, e um segundo checkout é bloqueado se já existir assinatura ativa.
