@@ -523,8 +523,10 @@ async def create_invoice_payment_link(invoice_id: str, request: Request):
     try:
         session = stripe.checkout.Session.create(
             mode="payment",
-            success_url=f"{origin}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{origin}/invoices/{invoice_id}",
+            # The payer is the invoice recipient, not the logged-in account owner,
+            # so return to a public page instead of an authenticated route.
+            success_url=f"{origin}/invoice-paid",
+            cancel_url=f"{origin}/invoice-paid?status=canceled",
             line_items=[{
                 "price_data": {
                     "currency": "eur",
