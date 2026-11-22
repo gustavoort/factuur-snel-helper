@@ -19,14 +19,18 @@ const styles: Record<string, string> = {
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
   const { t } = useTranslation();
   const key = status.trim().toLowerCase();
+  const fallback = status.replace(/[_-]+/g, " ").trim();
+  // Translations are already sentence case; only the raw fallback needs a capital.
   const label = key
-    ? t(`status.${key}`, { defaultValue: status.replace(/[_-]+/g, " ") })
+    ? t(`status.${key}`, {
+        defaultValue: fallback.charAt(0).toUpperCase() + fallback.slice(1),
+      })
     : t("status.unknown");
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
         styles[key] ?? "border-border bg-muted text-muted-foreground",
         className,
       )}
