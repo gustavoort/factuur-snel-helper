@@ -369,3 +369,49 @@ def test_local_subscription_status_treats_portal_cancel_at_as_pending_cancellati
     assert status_of({"status": "active", "cancel_at_period_end": False, "cancel_at": None}) == "active"
     assert status_of({"status": "canceled", "cancel_at": 1797943698}) == "canceled"
     assert status_of({"status": "past_due"}) == "past_due"
+
+
+def load_plan_helpers():
+    source = build_patched_source()
+    tree = ast.parse(source)
+    wanted = {"normalize_plan", "subscription_plan"}
+    namespace: dict = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name)
+            and target.id in {"PAID_PLAN_AMOUNTS", "PLAN_ALIASES", "PLAN_PRICE_LOOKUP_KEYS", "LOOKUP_KEY_PLANS", "AMOUNT_PLANS"}
+            for target in node.targets
+        ):
+            exec(ast.get_source_segment(source, node), namespace)
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name in wanted:
+            exec(ast.get_source_segment(source, node), namespace)
+    return source, namespace["subscription_plan"]
+
+
+def _subscription(price, metadata_plan="pro"):
+    return {"items": {"data": [{"price": price}]}, "metadata": {"user_id": "u", "plan": metadata_plan}}
+
+
+def test_subscription_plan_follows_portal_price_switch_not_stale_metadata():
+    _, plan_of = load_plan_helpers()
+    monthly = {"interval": "month", "interval_count": 1}
+
+    # Portal switch Pro -> Business: price changes, metadata still says "pro".
+    assert plan_of(_subscription({"lookup_key": "faktuvi_business_monthly", "unit_amount": 2499, "currency": "eur", "recurring": monthly}, "pro")) == "business"
+    assert plan_of(_subscription({"lookup_key": "faktuvi_pro_monthly", "unit_amount": 999, "currency": "eur", "recurring": monthly}, "business")) == "pro"
+    # Legacy ad-hoc price_data prices are recognised by amount.
+    assert plan_of(_subscription({"lookup_key": None, "unit_amount": 2499, "currency": "eur", "recurring": monthly}, "pro")) == "business"
+    assert plan_of(_subscription({"lookup_key": None, "unit_amount": 999, "currency": "eur", "recurring": monthly}, "business")) == "pro"
+    # Unknown price falls back to metadata; invalid metadata grants nothing.
+    assert plan_of(_subscription({"unit_amount": 5000, "currency": "eur", "recurring": monthly}, "pro")) == "pro"
+    assert plan_of(_subscription({"unit_amount": 999, "currency": "usd", "recurring": monthly}, "admin")) is None
+    assert plan_of({"metadata": {}}) is None
+
+
+def test_webhooks_derive_plan_from_price_and_checkout_disables_adaptive_pricing():
+    source, _ = load_plan_helpers()
+    assert 'plan = subscription_plan(paid_subscription) or ""' in source
+    assert 'update["subscription"] = current_plan' in source
+    assert source.count('"adaptive_pricing": {"enabled": False}') + source.count('adaptive_pricing={"enabled": False}') == 2
+    assert "resolve_plan_price_id(plan)" in source
