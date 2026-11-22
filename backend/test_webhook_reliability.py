@@ -313,3 +313,25 @@ def test_invalid_metadata_is_not_processed_as_an_entitlement():
     source = build_patched_source()
     assert 'if user_id and ObjectId.is_valid(str(user_id)) and plan in PAID_PLAN_AMOUNTS:' in source
     assert 'if not user_id or not ObjectId.is_valid(user_id):' in source
+
+
+def test_claim_succeeds_when_mongo_returns_truncated_naive_datetimes():
+    """MongoDB stores datetimes with millisecond precision and returns them
+    timezone-naive by default. The claim must still be recognised."""
+    claim, complete, _, _, collection = load_webhook_state_functions()
+    original = collection.find_one_and_update
+
+    async def mongo_like_find_one_and_update(*args, **kwargs):
+        doc = await original(*args, **kwargs)
+        if doc and isinstance(doc.get("lease_until"), datetime):
+            value = doc["lease_until"]
+            doc["lease_until"] = value.replace(
+                microsecond=(value.microsecond // 1000) * 1000, tzinfo=None
+            )
+        return doc
+
+    collection.find_one_and_update = mongo_like_find_one_and_update
+    assert asyncio.run(claim("evt_mongo", {"id": "evt_mongo"}, "token_mongo"))
+    asyncio.run(complete("evt_mongo", "token_mongo"))
+    assert collection.document["status"] == "completed"
+    assert not asyncio.run(claim("evt_mongo", {"id": "evt_mongo"}, "token_retry"))

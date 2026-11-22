@@ -724,10 +724,13 @@ async def claim_webhook_event(event_id: str, event_payload: dict, claim_token: s
     except DuplicateKeyError:
         claimed = await db.stripe_webhook_events.find_one({"event_id": event_id})
 
+    # claim_token is unique per delivery attempt, so it identifies this claim.
+    # Do not compare lease_until: MongoDB returns datetimes truncated to
+    # milliseconds and timezone-naive, so equality with the local value fails
+    # and every event would be acknowledged as a duplicate without processing.
     return bool(
         claimed
         and claimed.get("status") == "processing"
-        and claimed.get("lease_until") == lease_until
         and claimed.get("claim_token") == claim_token
     )
 
@@ -823,6 +826,10 @@ async def process_stripe_event(event: dict, event_id: str, claim_token: str) -> 
 
     if event_type == "invoice.paid":
         subscription_value = obj.get("subscription")
+        if not subscription_value:
+            # API versions from 2025-03-31 move the field to invoice.parent.
+            parent = obj.get("parent") or {}
+            subscription_value = (parent.get("subscription_details") or {}).get("subscription")
         subscription_id = subscription_value.get("id") if isinstance(subscription_value, dict) else subscription_value
         if subscription_id:
             paid_subscription = stripe.Subscription.retrieve(subscription_id)

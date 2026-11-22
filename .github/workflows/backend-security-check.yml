@@ -345,6 +345,12 @@ jobs:
           print("Invoice source-quote ownership check passed.")
           PY
 
+      - name: Run webhook reliability tests
+        working-directory: backend
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest -q test_webhook_reliability.py
+
   invoice-payment-owner:
     runs-on: ubuntu-latest
     steps:
