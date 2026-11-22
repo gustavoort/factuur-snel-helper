@@ -434,11 +434,21 @@ async def get_current_subscription(request: Request):
     }
 
 
+STRIPE_LOCALES = {"nl": "nl", "en": "en-GB", "pt": "pt-BR"}
+
+
+def stripe_locale(value):
+    """Map the app language (nl/en/pt) to a Stripe-hosted page locale."""
+    key = str(value or "").strip().lower().replace("_", "-").split("-")[0]
+    return STRIPE_LOCALES.get(key, "auto")
+
+
 @api_router.post("/subscription/checkout")
-async def create_subscription_checkout(data: SubscriptionPlan, request: Request):
+async def create_subscription_checkout(data: SubscriptionPlan, request: Request, locale: str = ""):
     user = await get_current_user(request)
     plan = normalize_plan(data.plan)
     origin = request_origin(request)
+    page_locale = stripe_locale(locale)
 
     if plan == "free":
         subscription_id = user.get("stripe_subscription_id")
@@ -453,6 +463,7 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
                 portal = stripe.billing_portal.Session.create(
                     customer=customer_id,
                     return_url=f"{origin}/billing",
+                    locale=page_locale,
                 )
                 return {"url": portal.url, "message": "Gerencie ou cancele a subscrição diretamente no Stripe."}
             except HTTPException:
@@ -485,6 +496,7 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
             portal = stripe.billing_portal.Session.create(
                 customer=customer_id,
                 return_url=f"{origin}/billing",
+                locale=page_locale,
             )
             return {
                 "url": portal.url,
@@ -545,6 +557,7 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
     try:
         session_kwargs = {
             "mode": "subscription",
+            "locale": page_locale,
             "success_url": f"{origin}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
             "cancel_url": f"{origin}/billing",
             "line_items": [plan_line_item],
