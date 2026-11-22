@@ -362,6 +362,8 @@ const nl = {
     checkAgain: "Opnieuw controleren",
   },
   status: {
+    active: "Actief",
+    cancel_at_period_end: "Stopt aan einde periode",
     draft: "Concept",
     sent: "Verzonden",
     accepted: "Geaccepteerd",

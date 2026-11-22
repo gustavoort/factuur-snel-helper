@@ -335,3 +335,22 @@ def test_claim_succeeds_when_mongo_returns_truncated_naive_datetimes():
     asyncio.run(complete("evt_mongo", "token_mongo"))
     assert collection.document["status"] == "completed"
     assert not asyncio.run(claim("evt_mongo", {"id": "evt_mongo"}, "token_retry"))
+
+
+def test_local_subscription_status_treats_portal_cancel_at_as_pending_cancellation():
+    source = build_patched_source()
+    node = next(
+        node
+        for node in ast.parse(source).body
+        if isinstance(node, ast.FunctionDef) and node.name == "local_subscription_status"
+    )
+    namespace: dict = {}
+    exec(ast.get_source_segment(source, node), namespace)
+    status_of = namespace["local_subscription_status"]
+
+    # Billing Portal cancellation (sets cancel_at, not cancel_at_period_end).
+    assert status_of({"status": "active", "cancel_at_period_end": False, "cancel_at": 1797943698}) == "cancel_at_period_end"
+    assert status_of({"status": "active", "cancel_at_period_end": True, "cancel_at": None}) == "cancel_at_period_end"
+    assert status_of({"status": "active", "cancel_at_period_end": False, "cancel_at": None}) == "active"
+    assert status_of({"status": "canceled", "cancel_at": 1797943698}) == "canceled"
+    assert status_of({"status": "past_due"}) == "past_due"
