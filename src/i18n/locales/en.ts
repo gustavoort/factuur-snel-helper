@@ -334,6 +334,7 @@ const en = {
     availablePlans: "Available plans",
     features: "Included",
     upgrade: "Upgrade",
+    downgrade: "Downgrade",
     upgrading: "Working…",
     current: "Current plan",
     perMonth: "per month",
