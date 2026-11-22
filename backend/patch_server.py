@@ -300,6 +300,57 @@ def local_subscription_status(subscription) -> str:
     ):
         return "cancel_at_period_end"
     return status
+
+
+# Fixed recurring prices (created once per Stripe account). Checkout uses them
+# when present so the Billing Portal can offer Pro <-> Business switches.
+PLAN_PRICE_LOOKUP_KEYS = {"pro": "faktuvi_pro_monthly", "business": "faktuvi_business_monthly"}
+LOOKUP_KEY_PLANS = {value: key for key, value in PLAN_PRICE_LOOKUP_KEYS.items()}
+AMOUNT_PLANS = {value: key for key, value in PAID_PLAN_AMOUNTS.items()}
+
+
+def subscription_plan(subscription):
+    """Return the paid plan backed by the subscription's current price.
+
+    The Billing Portal changes the subscription price on a plan switch but
+    leaves our ``metadata.plan`` untouched, so the price is the source of
+    truth. Metadata is only a fallback for unrecognised prices.
+    """
+    items = (subscription.get("items") or {}).get("data") or []
+    if len(items) == 1:
+        price = items[0].get("price") or {}
+        plan = LOOKUP_KEY_PLANS.get(price.get("lookup_key") or "")
+        if plan:
+            return plan
+        recurring = price.get("recurring") or {}
+        if (
+            str(price.get("currency") or "").lower() == "eur"
+            and recurring.get("interval") == "month"
+            and int(recurring.get("interval_count") or 1) == 1
+        ):
+            plan = AMOUNT_PLANS.get(price.get("unit_amount"))
+            if plan:
+                return plan
+    plan = normalize_plan((subscription.get("metadata") or {}).get("plan", ""))
+    return plan if plan in PAID_PLAN_AMOUNTS else None
+
+
+def resolve_plan_price_id(plan: str):
+    """Look up the fixed Stripe price for a plan; None falls back to price_data."""
+    try:
+        prices = stripe.Price.list(lookup_keys=[PLAN_PRICE_LOOKUP_KEYS[plan]], active=True, limit=1)
+    except stripe.error.StripeError as exc:
+        logger.warning("Could not look up Stripe price for plan %s: %s", plan, exc)
+        return None
+    for price in prices.get("data") or []:
+        recurring = price.get("recurring") or {}
+        if (
+            price.get("unit_amount") == PAID_PLAN_AMOUNTS[plan]
+            and str(price.get("currency") or "").lower() == "eur"
+            and recurring.get("interval") == "month"
+        ):
+            return price.get("id")
+    return None
 WEBHOOK_PROCESSING_LEASE = timedelta(minutes=5)
 
 
@@ -477,22 +528,28 @@ async def create_subscription_checkout(data: SubscriptionPlan, request: Request)
             logger.exception("Stripe duplicate-subscription check failed: %s", exc)
             raise HTTPException(status_code=502, detail="Não foi possível verificar a subscrição existente. Nenhuma nova cobrança foi criada.")
 
+    plan_price_id = resolve_plan_price_id(plan)
+    if plan_price_id:
+        plan_line_item = {"price": plan_price_id, "quantity": 1}
+    else:
+        plan_line_item = {
+            "price_data": {
+                "currency": "eur",
+                "product_data": {"name": f"Faktuvi {SUBSCRIPTION_PLANS[plan]['name']}"},
+                "unit_amount": PAID_PLAN_AMOUNTS[plan],
+                "recurring": {"interval": "month"},
+            },
+            "quantity": 1,
+        }
+
     try:
         session_kwargs = {
             "mode": "subscription",
             "success_url": f"{origin}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
             "cancel_url": f"{origin}/billing",
-            "line_items": [
-                {
-                    "price_data": {
-                        "currency": "eur",
-                        "product_data": {"name": f"Faktuvi {SUBSCRIPTION_PLANS[plan]['name']}"},
-                        "unit_amount": PAID_PLAN_AMOUNTS[plan],
-                        "recurring": {"interval": "month"},
-                    },
-                    "quantity": 1,
-                }
-            ],
+            "line_items": [plan_line_item],
+            # Faktuvi bills in EUR; never convert to the visitor's local currency.
+            "adaptive_pricing": {"enabled": False},
             "metadata": {"user_id": str(user["_id"]), "plan": plan, "type": "subscription"},
             "subscription_data": {"metadata": {"user_id": str(user["_id"]), "plan": plan, "type": "subscription"}},
         }
@@ -542,6 +599,7 @@ async def create_invoice_payment_link(invoice_id: str, request: Request):
             # so return to a public page instead of an authenticated route.
             success_url=f"{origin}/invoice-paid",
             cancel_url=f"{origin}/invoice-paid?status=canceled",
+            adaptive_pricing={"enabled": False},
             line_items=[{
                 "price_data": {
                     "currency": "eur",
@@ -850,7 +908,7 @@ async def process_stripe_event(event: dict, event_id: str, claim_token: str) -> 
             paid_subscription = stripe.Subscription.retrieve(subscription_id)
             metadata = paid_subscription.get("metadata") or {}
             user_id = metadata.get("user_id")
-            plan = normalize_plan(metadata.get("plan", ""))
+            plan = subscription_plan(paid_subscription) or ""
             if user_id and ObjectId.is_valid(str(user_id)) and plan in PAID_PLAN_AMOUNTS:
                 user_oid = parse_object_id(str(user_id), "user_id")
                 user_doc = await db.users.find_one({"_id": user_oid})
@@ -897,8 +955,12 @@ async def process_stripe_event(event: dict, event_id: str, claim_token: str) -> 
                     "subscription_event_created": event_created,
                     "subscription_updated_at": datetime.now(timezone.utc).isoformat(),
                 }
+                current_plan = subscription_plan(obj)
                 if obj.get("status") in {"canceled", "incomplete_expired"}:
                     update["subscription"] = "free"
+                elif current_plan:
+                    # Plan switches made in the Billing Portal arrive here.
+                    update["subscription"] = current_plan
                 async def apply_subscription_update(mongo_session):
                     await db.users.update_one(
                         {
