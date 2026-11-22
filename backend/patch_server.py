@@ -760,7 +760,6 @@ async def complete_webhook_event(event_id: str, claim_token: str) -> None:
                 "status": "completed",
                 "completed_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc),
-                "lease_until": None,
                 "last_error": None,
             },
             "$unset": {"lease_until": ""},
@@ -777,7 +776,6 @@ async def fail_webhook_event(event_id: str, claim_token: str, error: Exception) 
             "$set": {
                 "status": "failed",
                 "updated_at": datetime.now(timezone.utc),
-                "lease_until": None,
                 "last_error": str(error)[:2000],
             },
             "$unset": {"lease_until": ""},
