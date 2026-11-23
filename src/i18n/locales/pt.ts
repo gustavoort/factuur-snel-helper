@@ -345,6 +345,10 @@ const pt = {
     loadFailed: "Não foi possível carregar os dados da assinatura",
     checkoutFailed: "Falha ao iniciar o pagamento.",
     checkoutOpened: "Página de pagamento aberta em uma nova aba",
+    paymentIssueTitle: "Falha no pagamento",
+    paymentIssueBody:
+      "Não conseguimos cobrar sua assinatura. Os recursos pagos ficam pausados até o pagamento ser concluído. Atualize a forma de pagamento ou conclua o pagamento pendente.",
+    paymentIssueAction: "Atualizar pagamento",
     status: "Status",
   },
   payment: {
@@ -384,6 +388,12 @@ const pt = {
     unpaid: "Não pago",
     overdue: "Atrasado",
     cancelled: "Cancelado",
+    past_due: "Falha no pagamento",
+    incomplete: "Pagamento incompleto",
+    incomplete_expired: "Expirado",
+    canceled: "Cancelado",
+    trialing: "Período de teste",
+    free: "Grátis",
     unknown: "Desconhecido",
   },
   errors: {
