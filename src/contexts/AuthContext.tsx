@@ -17,6 +17,8 @@ interface AuthContextValue {
   register: (data: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  /** True after a signed-in session expired and could not be refreshed. */
+  sessionExpired: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const queryClient = useQueryClient();
 
   const refreshUser = useCallback(async () => {
@@ -50,7 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Session expired (refresh failed): clear user + private queries.
   useEffect(() => {
     setSessionExpiredHandler(() => {
-      setUser(null);
+      // Only a session that was actually signed in can "expire"; a 401 for a
+      // visitor who never logged in is the normal signed-out state.
+      setUser((current) => {
+        if (current) setSessionExpired(true);
+        return null;
+      });
       queryClient.clear();
     });
     return () => setSessionExpiredHandler(null);
@@ -59,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       await api.post("/auth/login", { email, password }, { skipAuthRefresh: true } as never);
+      setSessionExpired(false);
       await refreshUser();
     },
     [refreshUser],
@@ -81,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ignore — we sign out locally regardless
     } finally {
       setUser(null);
+      setSessionExpired(false);
       queryClient.clear();
     }
   }, [queryClient]);
@@ -95,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         refreshUser,
+        sessionExpired,
       }}
     >
       {children}

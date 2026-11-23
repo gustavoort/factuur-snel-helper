@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { pageMeta } from "@/i18n/head";
 import { isPaymentReturn, safeRedirectPath } from "@/lib/redirect";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 
 type LoginSearch = { redirect?: string | undefined };
 
@@ -35,7 +35,7 @@ function LoginRoute() {
 }
 
 function LoginPage({ redirect }: { redirect: string | undefined }) {
-  const { login } = useAuth();
+  const { login, sessionExpired } = useAuth();
   const navigate = useNavigate();
   const router = useRouter();
   const { t } = useTranslation();
@@ -59,6 +59,12 @@ function LoginPage({ redirect }: { redirect: string | undefined }) {
 
   return (
     <AuthShell title={t("auth.login.title")} subtitle={t("auth.login.subtitle")}>
+      {sessionExpired && !isPaymentReturn(redirect) && (
+        <Alert className="mb-4 border-amber-600/30 bg-amber-600/5">
+          <Clock className="h-4 w-4 text-amber-700" />
+          <AlertDescription>{t("errors.sessionExpired")}</AlertDescription>
+        </Alert>
+      )}
       {isPaymentReturn(redirect) && (
         <Alert className="mb-4 border-primary/30 bg-primary/5">
           <CheckCircle2 className="h-4 w-4 text-primary" />

@@ -65,6 +65,8 @@ jobs:
           assert 'subscription = effective_plan(user)' in source
           assert "Never build Stripe return URLs from an arbitrary Origin header." in source
           assert "Same-origin /api proxy makes cross-site cookies unnecessary; Lax blocks cross-site POSTs." in source
+          assert "def token_revoked(payload: dict, user: dict)" in source
+          assert "sessions_valid_after" in source
           assert "HTML injection hardening" not in source
 
           def function_block(name):
