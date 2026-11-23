@@ -96,7 +96,10 @@ function BillingPage() {
           ) : (
             <>
               <p className="text-2xl font-semibold tracking-tight text-foreground capitalize">
-                {currentPlan || t("billing.free")}
+                {(plans.data ?? []).find((p) => p.id.toLowerCase() === currentPlan.toLowerCase())
+                  ?.name ||
+                  currentPlan ||
+                  t("billing.free")}
               </p>
               {current.data?.status ? <StatusBadge status={current.data.status} /> : null}
               {current.data?.current_period_end ? (
