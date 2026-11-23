@@ -343,6 +343,10 @@ const en = {
     loadFailed: "Subscription data could not be loaded",
     checkoutFailed: "Starting checkout failed.",
     checkoutOpened: "Checkout page opened in a new tab",
+    paymentIssueTitle: "Payment failed",
+    paymentIssueBody:
+      "We could not charge your subscription. Your paid features are paused until the payment succeeds. Update your payment method or complete the open payment.",
+    paymentIssueAction: "Update payment",
     status: "Status",
   },
   payment: {
@@ -382,6 +386,12 @@ const en = {
     unpaid: "Unpaid",
     overdue: "Overdue",
     cancelled: "Cancelled",
+    past_due: "Payment failed",
+    incomplete: "Payment incomplete",
+    incomplete_expired: "Expired",
+    canceled: "Cancelled",
+    trialing: "Trial",
+    free: "Free",
     unknown: "Unknown",
   },
   errors: {

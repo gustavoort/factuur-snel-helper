@@ -54,7 +54,9 @@ export async function getPlans(): Promise<Plan[]> {
     .map(([key, value], index) => {
       const plan = normalizePlan(value, index);
       if (!plan) return null;
-      return { ...plan, id: plan.id || key, name: plan.name || key };
+      // The key ("free", "pro", "business") is the plan id the API expects;
+      // the "name" field is only a display label (e.g. "Gratis").
+      return { ...plan, id: key, name: plan.name || key };
     })
     .filter((plan): plan is Plan => plan !== null);
 }

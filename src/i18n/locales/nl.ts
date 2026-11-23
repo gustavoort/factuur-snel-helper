@@ -346,6 +346,10 @@ const nl = {
     loadFailed: "Abonnementsgegevens konden niet worden geladen",
     checkoutFailed: "Afrekenen starten is mislukt.",
     checkoutOpened: "Betaalpagina geopend in een nieuw tabblad",
+    paymentIssueTitle: "Betaling mislukt",
+    paymentIssueBody:
+      "We konden je abonnement niet afschrijven. Je betaalde functies zijn gepauzeerd tot de betaling is gelukt. Werk je betaalmethode bij of rond de openstaande betaling af.",
+    paymentIssueAction: "Betaling bijwerken",
     status: "Status",
   },
   payment: {
@@ -386,6 +390,12 @@ const nl = {
     unpaid: "Onbetaald",
     overdue: "Te laat",
     cancelled: "Geannuleerd",
+    past_due: "Betaling mislukt",
+    incomplete: "Betaling onvolledig",
+    incomplete_expired: "Verlopen",
+    canceled: "Geannuleerd",
+    trialing: "Proefperiode",
+    free: "Gratis",
     unknown: "Onbekend",
   },
   errors: {
