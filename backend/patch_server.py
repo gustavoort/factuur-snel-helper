@@ -1271,5 +1271,69 @@ source = source.replace(
     1,
 )
 
+# --- Revoke existing sessions after a password reset ---
+# JWTs are stateless, so a stolen or forgotten session stayed valid for up to
+# 7 days after the password was reset. Tokens now carry "iat" and are rejected
+# when issued before the account's sessions_valid_after timestamp.
+replace_all_required(
+    '        "exp": datetime.now(timezone.utc) + timedelta(hours=24),\n        "type": "access"\n',
+    '        "iat": datetime.now(timezone.utc),\n        "exp": datetime.now(timezone.utc) + timedelta(hours=24),\n        "type": "access"\n',
+    "access token issued-at claim",
+)
+replace_once(
+    '        "exp": datetime.now(timezone.utc) + timedelta(days=7),\n        "type": "refresh"\n',
+    '        "iat": datetime.now(timezone.utc),\n        "exp": datetime.now(timezone.utc) + timedelta(days=7),\n        "type": "refresh"\n',
+    "refresh token issued-at claim",
+)
+replace_once(
+    'def create_access_token(user_id: str, email: str) -> str:\n',
+    'def token_revoked(payload: dict, user: dict) -> bool:\n'
+    '    """True when the token predates the last password reset (sessions revoked)."""\n'
+    '    valid_after = user.get("sessions_valid_after")\n'
+    '    if not valid_after:\n'
+    '        return False\n'
+    '    issued_at = payload.get("iat")\n'
+    '    return not isinstance(issued_at, (int, float)) or issued_at < int(valid_after)\n'
+    '\n\n'
+    'def create_access_token(user_id: str, email: str) -> str:\n',
+    "token revocation helper",
+)
+replace_once(
+    '        user = await db.users.find_one({"_id": parse_object_id(payload["sub"], "user_id")})\n'
+    '        if not user:\n'
+    '            raise HTTPException(status_code=401, detail="Gebruiker niet gevonden")\n'
+    '\n'
+    '        user["_id"] = str(user["_id"])\n',
+    '        user = await db.users.find_one({"_id": parse_object_id(payload["sub"], "user_id")})\n'
+    '        if not user:\n'
+    '            raise HTTPException(status_code=401, detail="Gebruiker niet gevonden")\n'
+    '        if token_revoked(payload, user):\n'
+    '            raise HTTPException(status_code=401, detail="Sessie ingetrokken")\n'
+    '\n'
+    '        user["_id"] = str(user["_id"])\n',
+    "access token revocation check",
+)
+replace_once(
+    '        user = await db.users.find_one({"_id": parse_object_id(payload["sub"], "user_id")})\n'
+    '        if not user:\n'
+    '            raise HTTPException(status_code=401, detail="Gebruiker niet gevonden")\n'
+    '\n'
+    '        access_token = create_access_token(',
+    '        user = await db.users.find_one({"_id": parse_object_id(payload["sub"], "user_id")})\n'
+    '        if not user:\n'
+    '            raise HTTPException(status_code=401, detail="Gebruiker niet gevonden")\n'
+    '        if token_revoked(payload, user):\n'
+    '            raise HTTPException(status_code=401, detail="Sessie ingetrokken")\n'
+    '\n'
+    '        access_token = create_access_token(',
+    "refresh token revocation check",
+)
+replace_once(
+    '        {"$set": {"password_hash": hashed}}\n',
+    '        # JWT iat has 1s precision; tokens from earlier seconds are revoked.\n'
+    '        {"$set": {"password_hash": hashed, "sessions_valid_after": int(datetime.now(timezone.utc).timestamp())}}\n',
+    "revoke sessions on password reset",
+)
+
 path.write_text(source, encoding="utf-8")
 print("server.py patched: real email + recurring Stripe billing + webhook")
