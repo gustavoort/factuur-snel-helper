@@ -231,6 +231,7 @@ const nl = {
     convertAction: "Omzetten",
     convertTitle: "Deze offerte omzetten naar een factuur?",
     convertDescription: "De offerte wordt daarbij op geaccepteerd gezet.",
+    alreadyConverted: "Deze offerte was al omgezet. We openen de bestaande factuur.",
     converted: "Factuur succesvol aangemaakt",
     convertFailed: "Omzetten is mislukt.",
     noLines: "Deze offerte heeft geen regels.",

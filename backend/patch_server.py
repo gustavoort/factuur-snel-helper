@@ -1271,6 +1271,183 @@ source = source.replace(
     1,
 )
 
+# --- Quote -> invoice conversion: idempotent and uses the payment terms ---
+replace_once(
+    """    if not quote_doc:
+        raise HTTPException(status_code=404, detail="Offerte niet gevonden")
+
+    invoice_number = await get_next_number(user["_id"], "invoice")
+    invoice_data = {
+        "user_id": user["_id"],
+        "invoice_number": invoice_number,
+        "client_id": quote_doc["client_id"],
+        "items": quote_doc["items"],
+        "notes": quote_doc.get("notes", ""),
+        "from_quote_id": quote_id,
+        "status": "draft",
+        "subtotal": quote_doc["subtotal"],
+        "vat_total": quote_doc["vat_total"],
+        "total": quote_doc["total"],
+        "due_date": (datetime.now(timezone.utc) + timedelta(days=14)).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    result = await db.invoices.insert_one(invoice_data)
+""",
+    """    if not quote_doc:
+        raise HTTPException(status_code=404, detail="Offerte niet gevonden")
+
+    # Idempotent conversion: a double click or a second attempt returns the
+    # invoice that already exists instead of creating a duplicate.
+    async def existing_conversion():
+        existing = await db.invoices.find_one({"user_id": user["_id"], "from_quote_id": quote_id})
+        if not existing:
+            return None
+        return {
+            "id": str(existing["_id"]),
+            "invoice_number": existing.get("invoice_number"),
+            "already_converted": True,
+            "message": "Deze offerte is al omgezet naar een factuur",
+        }
+
+    already = await existing_conversion()
+    if already:
+        return already
+
+    # Short lease so two concurrent requests cannot both create an invoice.
+    now = datetime.now(timezone.utc)
+    claimed = await db.quotes.find_one_and_update(
+        {
+            "_id": quote_obj_id,
+            "user_id": user["_id"],
+            "$or": [
+                {"converting_at": {"$exists": False}},
+                {"converting_at": {"$lt": now - timedelta(seconds=30)}},
+            ],
+        },
+        {"$set": {"converting_at": now}},
+    )
+    if not claimed:
+        already = await existing_conversion()
+        if already:
+            return already
+        raise HTTPException(status_code=409, detail="Deze offerte wordt al omgezet. Probeer het zo opnieuw.")
+
+    try:
+        already = await existing_conversion()
+        if already:
+            return already
+
+        company = await db.companies.find_one({"user_id": user["_id"]})
+        payment_terms = company.get("payment_terms", 14) if company else 14
+        invoice_number = await get_next_number(user["_id"], "invoice")
+        invoice_data = {
+            "user_id": user["_id"],
+            "invoice_number": invoice_number,
+            "client_id": quote_doc["client_id"],
+            "items": quote_doc["items"],
+            "notes": quote_doc.get("notes", ""),
+            "from_quote_id": quote_id,
+            "status": "draft",
+            "subtotal": quote_doc["subtotal"],
+            "vat_total": quote_doc["vat_total"],
+            "total": quote_doc["total"],
+            "due_date": (datetime.now(timezone.utc) + timedelta(days=payment_terms)).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        result = await db.invoices.insert_one(invoice_data)
+    finally:
+        await db.quotes.update_one({"_id": quote_obj_id}, {"$unset": {"converting_at": ""}})
+""",
+    "idempotent quote conversion",
+)
+
+# --- WhatsApp sharing: readable message and the client's number ---
+replace_once(
+    """@api_router.get("/quotes/{quote_id}/whatsapp")
+async def get_quote_whatsapp_link(quote_id: str, request: Request):""",
+    """def format_eur_nl(amount) -> str:
+    \"\"\"Format an amount the Dutch way: 1234.5 -> "€ 1.234,50".\"\"\"
+    value = f"{float(amount or 0):,.2f}"
+    return "€ " + value.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def whatsapp_phone(raw) -> str:
+    \"\"\"Return the client's number in wa.me format (country code, digits only).\"\"\"
+    phone = str(raw or "").strip()
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if not digits:
+        return ""
+    if phone.startswith("+"):
+        pass
+    elif digits.startswith("00"):
+        digits = digits[2:]
+    elif digits.startswith("0"):
+        # Dutch national format (06..., 020...) -> +31
+        digits = "31" + digits[1:]
+    return digits if 8 <= len(digits) <= 15 else ""
+
+
+def whatsapp_sender_name(company: dict, user: dict) -> str:
+    return (
+        str(company.get("company_name") or "").strip()
+        or str(company.get("owner_name") or "").strip()
+        or str(user.get("name") or "").strip()
+        or "Faktuvi"
+    )
+
+
+async def whatsapp_client_phone(user: dict, client_id) -> str:
+    try:
+        client_doc = await db.clients.find_one({"_id": ObjectId(str(client_id)), "user_id": user["_id"]})
+    except Exception:
+        return ""
+    return whatsapp_phone((client_doc or {}).get("phone"))
+
+
+def build_whatsapp_url(message: str, phone: str) -> str:
+    return f"https://wa.me/{phone}?text={quote(message)}"
+
+
+@api_router.get("/quotes/{quote_id}/whatsapp")
+async def get_quote_whatsapp_link(quote_id: str, request: Request):""",
+    "whatsapp helpers",
+)
+replace_once(
+    """    company = await db.companies.find_one({"user_id": user["_id"]}) or {}
+    company_name = company.get("company_name", "Faktuvi")
+
+    message = f"Beste, hierbij ontvangt u offerte {quote_doc['quote_number']} van {html_lib.escape(str(company_name), quote=True)}. Totaalbedrag: €{quote_doc['total']:.2f}"
+    whatsapp_url = f"https://wa.me/?text={quote(message)}"
+""",
+    """    company = await db.companies.find_one({"user_id": user["_id"]}) or {}
+    company_name = whatsapp_sender_name(company, user)
+
+    message = f"Beste, hierbij ontvangt u offerte {quote_doc['quote_number']} van {company_name}. Totaalbedrag: {format_eur_nl(quote_doc.get('total'))}"
+    whatsapp_url = build_whatsapp_url(message, await whatsapp_client_phone(user, quote_doc.get("client_id")))
+""",
+    "quote whatsapp message",
+)
+replace_once(
+    """    company = await db.companies.find_one({"user_id": user["_id"]}) or {}
+    company_name = company.get("company_name", "Faktuvi")
+
+    message = f"Beste, hierbij ontvangt u factuur {invoice_doc['invoice_number']} van {html_lib.escape(str(company_name), quote=True)}. Totaalbedrag: €{invoice_doc['total']:.2f}"
+    whatsapp_url = f"https://wa.me/?text={quote(message)}"
+""",
+    """    company = await db.companies.find_one({"user_id": user["_id"]}) or {}
+    company_name = whatsapp_sender_name(company, user)
+
+    message = f"Beste, hierbij ontvangt u factuur {invoice_doc['invoice_number']} van {company_name}. Totaalbedrag: {format_eur_nl(invoice_doc.get('total'))}"
+    payment_link = str(invoice_doc.get("payment_link") or "")
+    if invoice_doc.get("status") != "paid" and payment_link.startswith("https://"):
+        message += f". Betalen kan via: {payment_link}"
+    whatsapp_url = build_whatsapp_url(message, await whatsapp_client_phone(user, invoice_doc.get("client_id")))
+""",
+    "invoice whatsapp message",
+)
+
 # --- Revoke existing sessions after a password reset ---
 # JWTs are stateless, so a stolen or forgotten session stayed valid for up to
 # 7 days after the password was reset. Tokens now carry "iat" and are rejected

@@ -228,6 +228,7 @@ const en = {
     convertAction: "Convert",
     convertTitle: "Convert this quote into an invoice?",
     convertDescription: "The quote will be marked as accepted.",
+    alreadyConverted: "This quote was already converted. Opening the existing invoice.",
     converted: "Invoice created successfully",
     convertFailed: "Converting failed.",
     noLines: "This quote has no line items.",
