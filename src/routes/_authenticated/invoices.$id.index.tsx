@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { cancelPendingTab, openPendingTab, resolvePendingTab } from "@/lib/popup";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -88,7 +89,6 @@ function InvoiceDetailPage() {
 
   const whatsapp = useMutation({
     mutationFn: () => getInvoiceWhatsapp(id),
-    onSuccess: ({ url }) => window.open(url, "_blank", "noopener,noreferrer"),
     onError: (err) => toast.error(getApiErrorMessage(err, t("invoices.whatsappFailed"))),
   });
 
@@ -182,7 +182,17 @@ function InvoiceDetailPage() {
                 <Mail className="h-4 w-4" /> {t("billing.upgrade")}
               </Button>
             )}
-            <Button variant="outline" disabled={busy} onClick={() => whatsapp.mutate()}>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                const tab = openPendingTab();
+                whatsapp.mutate(undefined, {
+                  onSuccess: ({ url }) => resolvePendingTab(tab, url),
+                  onError: () => cancelPendingTab(tab),
+                });
+              }}
+            >
               <MessageCircle className="h-4 w-4" /> {t("common.shareWhatsapp")}
             </Button>
             {canCreatePaymentLink ? (

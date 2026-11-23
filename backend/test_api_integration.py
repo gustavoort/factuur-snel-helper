@@ -193,3 +193,57 @@ def test_stripe_webhook_rejects_unsigned_and_forged_requests():
         headers={"Content-Type": "application/json", "Stripe-Signature": "t=1,v1=deadbeef"},
     )
     assert forged.status_code == 400
+
+
+def test_quote_conversion_is_idempotent_and_uses_payment_terms(mongo_db):
+    from datetime import datetime, timezone
+
+    user, user_id = new_account("Convert")
+    set_plan(mongo_db, user_id, "pro")
+    assert user.put(f"{API_URL}/company", json={"company_name": "CI BV", "payment_terms": 30}).status_code == 200
+    client_id = user.post(f"{API_URL}/clients", json={"name": "CI Klant Convert"}).json()["id"]
+    quote_id = user.post(f"{API_URL}/quotes", json={"client_id": client_id, "items": ITEM}).json()["id"]
+
+    first = user.post(f"{API_URL}/quotes/{quote_id}/convert")
+    assert first.status_code == 200, first.text
+    second = user.post(f"{API_URL}/quotes/{quote_id}/convert")
+    assert second.status_code == 200, second.text
+    assert second.json()["id"] == first.json()["id"]
+    assert second.json().get("already_converted") is True
+
+    invoices = items_of(user.get(f"{API_URL}/invoices").json(), "invoices")
+    assert len(invoices) == 1
+    invoice = user.get(f"{API_URL}/invoices/{first.json()['id']}").json()
+    due = datetime.fromisoformat(invoice["due_date"].replace("Z", "+00:00"))
+    days = (due - datetime.now(timezone.utc)).days
+    assert 29 <= days <= 30, invoice["due_date"]
+
+
+def test_whatsapp_link_targets_client_and_formats_amount(mongo_db):
+    from urllib.parse import parse_qs, urlparse
+
+    user, user_id = new_account("Whatsapp")
+    set_plan(mongo_db, user_id, "pro")
+    # No company name: the sender falls back to the owner's name, never "van ."
+    assert user.put(f"{API_URL}/company", json={"owner_name": "Jansen & Zn"}).status_code == 200
+    client_id = user.post(
+        f"{API_URL}/clients", json={"name": "CI Klant WA", "phone": "06 1234 5678"}
+    ).json()["id"]
+    items = [{"description": "Werk", "quantity": 1, "unit_price": 1225, "vat_rate": 21}]
+    quote_id = user.post(f"{API_URL}/quotes", json={"client_id": client_id, "items": items}).json()["id"]
+
+    response = user.get(f"{API_URL}/quotes/{quote_id}/whatsapp")
+    assert response.status_code == 200, response.text
+    url = urlparse(response.json()["whatsapp_url"])
+    assert url.netloc == "wa.me" and url.path == "/31612345678"
+    text = parse_qs(url.query)["text"][0]
+    assert "van Jansen & Zn." in text, text
+    assert "€ 1.482,25" in text, text
+
+    other_client = user.post(f"{API_URL}/clients", json={"name": "Zonder nummer"}).json()["id"]
+    invoice_id = user.post(f"{API_URL}/invoices", json={"client_id": other_client, "items": items}).json()["id"]
+    response = user.get(f"{API_URL}/invoices/{invoice_id}/whatsapp")
+    assert response.status_code == 200, response.text
+    url = urlparse(response.json()["whatsapp_url"])
+    assert url.path == "/"
+    assert "€ 1.482,25" in parse_qs(url.query)["text"][0]

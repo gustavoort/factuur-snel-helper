@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { cancelPendingTab, openPendingTab, resolvePendingTab } from "@/lib/popup";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -83,7 +84,6 @@ function QuoteDetailPage() {
 
   const whatsapp = useMutation({
     mutationFn: () => getQuoteWhatsapp(id),
-    onSuccess: ({ url }) => window.open(url, "_blank", "noopener,noreferrer"),
     onError: (err) => toast.error(getApiErrorMessage(err, t("quotes.whatsappFailed"))),
   });
 
@@ -100,7 +100,9 @@ function QuoteDetailPage() {
   const convert = useMutation({
     mutationFn: () => convertQuote(id),
     onSuccess: async (invoice) => {
-      toast.success(t("quotes.converted"));
+      toast.success(
+        invoice.alreadyConverted ? t("quotes.alreadyConverted") : t("quotes.converted"),
+      );
       setConfirm(null);
       await invalidate();
       await queryClient.invalidateQueries({ queryKey: ["invoices"] });
@@ -178,7 +180,17 @@ function QuoteDetailPage() {
                 <Mail className="h-4 w-4" /> {t("billing.upgrade")}
               </Button>
             )}
-            <Button variant="outline" disabled={busy} onClick={() => whatsapp.mutate()}>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                const tab = openPendingTab();
+                whatsapp.mutate(undefined, {
+                  onSuccess: ({ url }) => resolvePendingTab(tab, url),
+                  onError: () => cancelPendingTab(tab),
+                });
+              }}
+            >
               <MessageCircle className="h-4 w-4" /> {t("common.shareWhatsapp")}
             </Button>
             <Button variant="outline" disabled={busy} onClick={() => duplicate.mutate()}>

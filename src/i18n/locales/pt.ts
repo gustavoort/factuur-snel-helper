@@ -230,6 +230,7 @@ const pt = {
     convertAction: "Converter",
     convertTitle: "Converter este orçamento em uma fatura?",
     convertDescription: "O orçamento será marcado como aceito.",
+    alreadyConverted: "Este orçamento já foi convertido. Abrindo a fatura existente.",
     converted: "Fatura criada com sucesso",
     convertFailed: "Falha na conversão.",
     noLines: "Este orçamento não tem itens.",

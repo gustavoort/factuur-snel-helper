@@ -84,6 +84,15 @@ jobs:
           assert 'require_plan(user, "pro")' in function_block("upload_logo")
           assert 'require_plan(user, "pro")' in function_block("send_quote_email")
           assert 'require_plan(user, "pro")' in function_block("send_invoice_email")
+          assert '"already_converted": True' in function_block("convert_quote_to_invoice")
+          assert '"converting_at"' in function_block("convert_quote_to_invoice")
+          assert "timedelta(days=payment_terms)" in function_block("convert_quote_to_invoice")
+          assert "timedelta(days=14)" not in function_block("convert_quote_to_invoice")
+          for wa in ("get_quote_whatsapp_link", "get_invoice_whatsapp_link"):
+              assert "build_whatsapp_url(" in function_block(wa)
+              assert "format_eur_nl(" in function_block(wa)
+              assert "html_lib.escape" not in function_block(wa)
+          assert "https://wa.me/?text=" not in source
           assert 'require_plan(user, "business")' in function_block("create_invoice_payment_link")
           # Invoice payers have no Faktuvi account: they must return to a public page.
           assert 'success_url=f"{origin}/invoice-paid"' in function_block("create_invoice_payment_link")

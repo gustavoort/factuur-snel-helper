@@ -177,7 +177,7 @@ export async function duplicateQuote(id: string): Promise<Quote> {
   return unwrapQuote(data);
 }
 
-export async function convertQuote(id: string): Promise<{ id: string }> {
+export async function convertQuote(id: string): Promise<{ id: string; alreadyConverted: boolean }> {
   const { data } = await api.post<unknown>(`/quotes/${encodeURIComponent(id)}/convert`);
   const response = asRecord(data);
   const invoice = asRecord(response?.["invoice"]) ?? response;
@@ -185,7 +185,7 @@ export async function convertQuote(id: string): Promise<{ id: string }> {
   if (typeof invoiceId !== "string" && typeof invoiceId !== "number") {
     throw new Error(i18n.t("errors.noInvoiceId"));
   }
-  return { id: String(invoiceId) };
+  return { id: String(invoiceId), alreadyConverted: response?.["already_converted"] === true };
 }
 
 export async function downloadQuotePdf(id: string, quoteNumber: string) {
