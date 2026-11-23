@@ -9,13 +9,17 @@ Covered:
   share, convert or reference another account's clients, quotes and invoices;
 - plan rules: Free limits, Pro/Business-only features and fail-closed
   entitlements when the billing state is incomplete;
+- sessions: refresh issues a new access token, logout signs out, and a
+  password reset revokes every session opened before it;
 - the Stripe webhook rejects unsigned requests.
 """
 
 import json
 import os
 import secrets
+import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -247,3 +251,76 @@ def test_whatsapp_link_targets_client_and_formats_amount(mongo_db):
     url = urlparse(response.json()["whatsapp_url"])
     assert url.path == "/"
     assert "€ 1.482,25" in parse_qs(url.query)["text"][0]
+
+
+def new_account_with_password(label: str):
+    session = requests.Session()
+    session.headers.update({"Origin": ORIGIN})
+    email = f"ci-{label.lower()}-{uuid.uuid4().hex[:10]}@ci.faktuvi.nl"
+    password = secrets.token_urlsafe(18)
+    response = session.post(
+        f"{API_URL}/auth/register",
+        json={"email": email, "password": password, "name": f"CI Test {label}"},
+    )
+    assert response.status_code == 200, response.text
+    return session, response.json()["id"], email, password
+
+
+def test_refresh_token_renews_an_expired_access_token():
+    session, _ = new_account("Refresh")
+    assert session.get(f"{API_URL}/auth/me").status_code == 200
+    # Simulate an expired access token: only the refresh cookie is left.
+    session.cookies.clear(domain=session.cookies.list_domains()[0], path="/", name="access_token")
+    assert session.get(f"{API_URL}/auth/me").status_code == 401
+    assert session.post(f"{API_URL}/auth/refresh").status_code == 200
+    assert session.get(f"{API_URL}/auth/me").status_code == 200
+
+
+def test_refresh_without_refresh_token_is_rejected():
+    session, _ = new_account("NoRefresh")
+    session.cookies.clear()
+    assert session.post(f"{API_URL}/auth/refresh").status_code == 401
+    assert session.get(f"{API_URL}/auth/me").status_code == 401
+
+
+def test_logout_clears_the_session():
+    session, _ = new_account("Logout")
+    assert session.post(f"{API_URL}/auth/logout").status_code == 200
+    assert session.get(f"{API_URL}/auth/me").status_code == 401
+
+
+def test_password_reset_revokes_existing_sessions(mongo_db):
+    old_session, user_id, email, _ = new_account_with_password("Reset")
+    refresh_cookie = old_session.cookies.get("refresh_token")
+    assert old_session.get(f"{API_URL}/auth/me").status_code == 200
+    # JWT iat has one-second precision: make sure the reset is in a later second.
+    time.sleep(1.2)
+
+    token = secrets.token_urlsafe(32)
+    mongo_db.password_reset_tokens.insert_one({
+        "token": token,
+        "user_id": user_id,
+        "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+        "used": False,
+    })
+    new_password = secrets.token_urlsafe(18)
+    reset = requests.post(
+        f"{API_URL}/auth/reset-password",
+        json={"token": token, "new_password": new_password},
+        headers={"Origin": ORIGIN},
+    )
+    assert reset.status_code == 200, reset.text
+
+    # Both the old access token and the old refresh token stop working.
+    assert old_session.get(f"{API_URL}/auth/me").status_code == 401
+    stolen = requests.Session()
+    stolen.headers.update({"Origin": ORIGIN})
+    stolen.cookies.set("refresh_token", refresh_cookie)
+    assert stolen.post(f"{API_URL}/auth/refresh").status_code == 401
+
+    # A fresh login with the new password works right away.
+    fresh = requests.Session()
+    fresh.headers.update({"Origin": ORIGIN})
+    login = fresh.post(f"{API_URL}/auth/login", json={"email": email, "password": new_password})
+    assert login.status_code == 200, login.text
+    assert fresh.get(f"{API_URL}/auth/me").status_code == 200

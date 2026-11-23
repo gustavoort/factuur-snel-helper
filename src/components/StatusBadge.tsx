@@ -13,6 +13,9 @@ const styles: Record<string, string> = {
   expired: "border-border bg-muted text-muted-foreground",
   active: "border-emerald-600/30 bg-emerald-600/10 text-emerald-700",
   cancel_at_period_end: "border-amber-600/30 bg-amber-600/10 text-amber-700",
+  past_due: "border-destructive/30 bg-destructive/10 text-destructive",
+  incomplete: "border-amber-600/30 bg-amber-600/10 text-amber-700",
+  trialing: "border-primary/30 bg-primary/10 text-primary",
 };
 
 /** Shows a backend status with a translated label; unknown statuses render neutrally. */

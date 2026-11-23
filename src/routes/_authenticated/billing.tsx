@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Check } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { getApiErrorMessage, isApiConfigured } from "@/lib/api";
 import {
   currentSubscriptionQueryOptions,
@@ -11,11 +11,16 @@ import {
 } from "@/lib/subscription";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDate } from "@/i18n/format";
 import { pageMeta } from "@/i18n/head";
+
+// Stripe statuses where a subscription exists but the last charge failed or
+// still needs the customer (e.g. 3-D Secure). Paid features are paused.
+const PAYMENT_ISSUE_STATUSES = new Set(["past_due", "unpaid", "incomplete"]);
 
 export const Route = createFileRoute("/_authenticated/billing")({
   head: () => ({ meta: pageMeta("billing.title", "billing.description") }),
@@ -47,6 +52,7 @@ function BillingPage() {
   });
 
   const currentPlan = current.data?.plan ?? "";
+  const paymentIssue = PAYMENT_ISSUE_STATUSES.has((current.data?.status ?? "").toLowerCase());
 
   return (
     <>
@@ -63,6 +69,21 @@ function BillingPage() {
         </div>
       )}
 
+      {paymentIssue && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>{t("billing.paymentIssueTitle")}</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>{t("billing.paymentIssueBody")}</p>
+            {/* A paid plan with an existing subscription opens the Stripe
+                Billing Portal, where the open invoice can be paid. */}
+            <Button size="sm" disabled={checkout.isPending} onClick={() => checkout.mutate("pro")}>
+              {checkout.isPending ? t("billing.upgrading") : t("billing.paymentIssueAction")}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card className="mb-8">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -75,7 +96,10 @@ function BillingPage() {
           ) : (
             <>
               <p className="text-2xl font-semibold tracking-tight text-foreground capitalize">
-                {currentPlan || t("billing.free")}
+                {(plans.data ?? []).find((p) => p.id.toLowerCase() === currentPlan.toLowerCase())
+                  ?.name ||
+                  currentPlan ||
+                  t("billing.free")}
               </p>
               {current.data?.status ? <StatusBadge status={current.data.status} /> : null}
               {current.data?.current_period_end ? (
